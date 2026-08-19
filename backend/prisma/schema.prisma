@@ -1,0 +1,323 @@
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+generator client {
+  provider = "prisma-client-js"
+}
+
+enum Role {
+  ORG_ADMIN
+  LOCATION_MANAGER
+  EXTERNAL_INSPECTOR
+}
+
+enum DocumentStatus {
+  PENDING_VERIFICATION
+  VERIFIED
+  REJECTED
+  EXPIRED
+}
+
+enum AlertType {
+  EXPIRY_WARNING
+  LAPSED_LICENSE
+  CASCADING_RISK
+}
+
+enum NotificationChannel {
+  EMAIL
+  SMS
+  IN_APP
+}
+
+// ----------------------------------------------------
+// 1. Tenancy & Access Control Module
+// ----------------------------------------------------
+
+model Organization {
+  id         String   @id @default(uuid())
+  name       String
+  tax_id     String?  @unique
+  created_at DateTime @default(now())
+  updated_at DateTime @updatedAt
+
+  locations         Location[]
+  users             User[]
+  documents         Document[]
+  compliance_scores ComplianceScore[]
+  audit_links       AuditLink[]
+  notification_logs NotificationLog[]
+
+  @@map("organizations")
+}
+
+model Location {
+  id                       String   @id @default(uuid())
+  org_id                   String
+  name                     String
+  code                     String
+  type                     String   // e.g. "STORE", "WAREHOUSE", "OFFICE", "FACTORY"
+  state                    String   // e.g. "Karnataka", "Maharashtra"
+  address                  String?
+  current_compliance_score Float    @default(100.0)
+  created_at               DateTime @default(now())
+  updated_at               DateTime @updatedAt
+
+  organization         Organization         @relation(fields: [org_id], references: [id], onDelete: Cascade)
+  user_location_access UserLocationAccess[]
+  documents            Document[]
+  compliance_scores    ComplianceScore[]
+
+  @@unique([org_id, code])
+  @@index([org_id])
+  @@map("locations")
+}
+
+model User {
+  id            String   @id @default(uuid())
+  org_id        String
+  name          String
+  email         String   @unique
+  password_hash String
+  role          Role     @default(LOCATION_MANAGER)
+  created_at    DateTime @default(now())
+  updated_at    DateTime @updatedAt
+
+  organization             Organization             @relation(fields: [org_id], references: [id], onDelete: Cascade)
+  user_location_access     UserLocationAccess[]
+  uploaded_documents       Document[]               @relation("UploadedBy")
+  verified_documents       Document[]               @relation("VerifiedBy")
+  audit_links              AuditLink[]              @relation("CreatedBy")
+  notification_logs        NotificationLog[]
+  notification_preferences NotificationPreference[]
+
+  @@index([org_id])
+  @@map("users")
+}
+
+model UserLocationAccess {
+  id          String   @id @default(uuid())
+  user_id     String
+  location_id String
+  created_at  DateTime @default(now())
+
+  user     User     @relation(fields: [user_id], references: [id], onDelete: Cascade)
+  location Location @relation(fields: [location_id], references: [id], onDelete: Cascade)
+
+  @@unique([user_id, location_id])
+  @@map("user_location_access")
+}
+
+// ----------------------------------------------------
+// 2. Intelligence Engine Module
+// ----------------------------------------------------
+
+model LicenseType {
+  id                     String   @id @default(uuid())
+  name                   String
+  code                   String   @unique // e.g. "TRADE_LICENSE", "FIRE_NOC", "PAN", "DGFT_IEC"
+  description            String?
+  issuing_authority      String?
+  default_validity_months Int?
+  is_lifetime_valid      Boolean  @default(false)
+  created_at             DateTime @default(now())
+  updated_at             DateTime @updatedAt
+
+  dependent_on           Dependency[]             @relation("DependentLicense")
+  prerequisite_for       Dependency[]             @relation("PrerequisiteLicense")
+  license_type_rules     LicenseTypeStateRule[]
+  required_license_types RequiredLicenseType[]
+  documents              Document[]
+
+  @@map("license_types")
+}
+
+model Dependency {
+  id                            String   @id @default(uuid())
+  license_type_id               String
+  prerequisite_license_type_id String
+  is_blocking                   Boolean  @default(true)
+  created_at                    DateTime @default(now())
+
+  license_type              LicenseType @relation("DependentLicense", fields: [license_type_id], references: [id], onDelete: Cascade)
+  prerequisite_license_type LicenseType @relation("PrerequisiteLicense", fields: [prerequisite_license_type_id], references: [id], onDelete: Cascade)
+
+  @@unique([license_type_id, prerequisite_license_type_id])
+  @@map("dependencies")
+}
+
+model LicenseTypeStateRule {
+  id                       String   @id @default(uuid())
+  license_type_id          String
+  state                    String
+  is_mandatory             Boolean  @default(true)
+  validity_override_months Int?
+  created_at               DateTime @default(now())
+
+  license_type LicenseType @relation(fields: [license_type_id], references: [id], onDelete: Cascade)
+
+  @@unique([license_type_id, state])
+  @@map("license_type_state_rules")
+}
+
+model RequiredLicenseType {
+  id              String   @id @default(uuid())
+  license_type_id String
+  location_type   String   // e.g. "STORE", "WAREHOUSE"
+  state           String?  // null means applies to all states
+  is_mandatory    Boolean  @default(true)
+  created_at      DateTime @default(now())
+
+  license_type LicenseType @relation(fields: [license_type_id], references: [id], onDelete: Cascade)
+
+  @@map("required_license_types")
+}
+
+model ComplianceScore {
+  id             String   @id @default(uuid())
+  org_id         String
+  location_id    String
+  score          Float
+  breakdown_json Json
+  calculated_at  DateTime @default(now())
+
+  organization Organization @relation(fields: [org_id], references: [id], onDelete: Cascade)
+  location     Location     @relation(fields: [location_id], references: [id], onDelete: Cascade)
+
+  @@index([org_id])
+  @@index([location_id])
+  @@map("compliance_scores")
+}
+
+// ----------------------------------------------------
+// 3. Document Core Module
+// ----------------------------------------------------
+
+model Document {
+  id                 String         @id @default(uuid())
+  org_id             String
+  location_id        String?        // null if organization-wide document (e.g. DGFT IEC)
+  license_type_id    String
+  file_name          String
+  storage_key        String
+  file_size          Int
+  mime_type          String
+  sha256_hash        String
+  issue_date         DateTime?
+  expiry_date        DateTime?
+  status             DocumentStatus @default(PENDING_VERIFICATION)
+  rejection_reason   String?
+  uploaded_by_id     String
+  verified_by_id     String?
+  verified_at        DateTime?
+  parent_document_id String?        // Self-referencing link for renewal version chain
+  created_at         DateTime       @default(now())
+  updated_at         DateTime       @updatedAt
+
+  organization    Organization   @relation(fields: [org_id], references: [id], onDelete: Cascade)
+  location        Location?      @relation(fields: [location_id], references: [id], onDelete: SetNull)
+  license_type    LicenseType    @relation(fields: [license_type_id], references: [id], onDelete: Restrict)
+  uploaded_by     User           @relation("UploadedBy", fields: [uploaded_by_id], references: [id])
+  verified_by     User?          @relation("VerifiedBy", fields: [verified_by_id], references: [id])
+  parent_document Document?      @relation("RenewalChain", fields: [parent_document_id], references: [id])
+  child_renewals  Document[]     @relation("RenewalChain")
+  audit_link_docs AuditLinkDocument[]
+
+  @@index([org_id])
+  @@index([location_id])
+  @@index([license_type_id])
+  @@map("documents")
+}
+
+// ----------------------------------------------------
+// 4. Cloud Data Rooms Module
+// ----------------------------------------------------
+
+model AuditLink {
+  id            String   @id @default(uuid())
+  org_id        String
+  created_by_id String
+  token         String   @unique
+  pin_hash      String?
+  title         String
+  notes         String?
+  expires_at    DateTime
+  is_active     Boolean  @default(true)
+  created_at    DateTime @default(now())
+
+  organization Organization           @relation(fields: [org_id], references: [id], onDelete: Cascade)
+  created_by   User                   @relation("CreatedBy", fields: [created_by_id], references: [id])
+  documents    AuditLinkDocument[]
+  access_logs  AuditLinkAccessLog[]
+
+  @@index([org_id])
+  @@map("audit_links")
+}
+
+model AuditLinkDocument {
+  id            String   @id @default(uuid())
+  audit_link_id String
+  document_id   String
+  created_at    DateTime @default(now())
+
+  audit_link AuditLink @relation(fields: [audit_link_id], references: [id], onDelete: Cascade)
+  document   Document  @relation(fields: [document_id], references: [id], onDelete: Cascade)
+
+  @@unique([audit_link_id, document_id])
+  @@map("audit_link_documents")
+}
+
+model AuditLinkAccessLog {
+  id            String   @id @default(uuid())
+  audit_link_id String
+  accessed_at   DateTime @default(now())
+  ip_address    String?
+  user_agent    String?
+  success       Boolean  @default(true)
+
+  audit_link AuditLink @relation(fields: [audit_link_id], references: [id], onDelete: Cascade)
+
+  @@index([audit_link_id])
+  @@map("audit_link_access_logs")
+}
+
+// ----------------------------------------------------
+// 5. Event Tracking Module
+// ----------------------------------------------------
+
+model NotificationLog {
+  id         String              @id @default(uuid())
+  org_id     String
+  user_id    String
+  type       AlertType
+  channel    NotificationChannel
+  recipient  String
+  content    String
+  sent_at    DateTime            @default(now())
+  status     String              @default("SENT")
+
+  organization Organization @relation(fields: [org_id], references: [id], onDelete: Cascade)
+  user         User         @relation(fields: [user_id], references: [id], onDelete: Cascade)
+
+  @@index([org_id])
+  @@index([user_id])
+  @@map("notification_logs")
+}
+
+model NotificationPreference {
+  id            String    @id @default(uuid())
+  user_id       String
+  alert_type    AlertType
+  email_enabled Boolean   @default(true)
+  sms_enabled   Boolean   @default(false)
+  in_app_enabled Boolean  @default(true)
+  created_at    DateTime  @default(now())
+  updated_at    DateTime  @updatedAt
+
+  user User @relation(fields: [user_id], references: [id], onDelete: Cascade)
+
+  @@unique([user_id, alert_type])
+  @@map("notification_preferences")
+}
