@@ -1,4 +1,4 @@
-# SCLIP — Secure Compliance & License Intelligence Platform
+# Cloud-based, multi-tenant license and compliance management system
 
 A cloud-based, multi-tenant license and compliance management system that helps Indian businesses track regulatory licenses across multiple locations, detect cascading compliance risk, and stay ahead of renewal deadlines through automated monitoring and alerts.
 
