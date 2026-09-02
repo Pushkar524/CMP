@@ -1,9 +1,16 @@
 const express = require('express');
 const cors = require('cors');
 
+// Middleware & Handlers
+const errorHandler = require('./middleware/errorHandler');
+
+// Route Handlers
+const authRoutes = require('./modules/auth/auth.routes');
+const tenancyRoutes = require('./modules/tenancy/tenancy.routes');
+
 const app = express();
 
-// Middleware
+// Global Middleware
 app.use(cors());
 app.use(express.json());
 app.use(express.urlencoded({ extended: true }));
@@ -17,17 +24,20 @@ app.get('/health', (req, res) => {
   });
 });
 
-// 404 Handler
-app.use((req, res, next) => {
-  res.status(404).json({ error: 'Endpoint not found' });
-});
+// Mount Module APIs
+app.use('/api/auth', authRoutes);
+app.use('/api/tenancy', tenancyRoutes);
 
-// Global Error Handler
-app.use((err, req, res, next) => {
-  console.error('[Global Error]', err);
-  res.status(err.status || 500).json({
-    error: err.message || 'Internal Server Error',
+// 404 Catch-All Handler
+app.use((req, res, next) => {
+  res.status(404).json({
+    success: false,
+    status: 'fail',
+    message: `Cannot ${req.method} ${req.originalUrl} - Endpoint not found`,
   });
 });
+
+// Centralized Error Handler Middleware
+app.use(errorHandler);
 
 module.exports = app;
