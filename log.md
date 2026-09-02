@@ -36,20 +36,20 @@ This document tracks the complete roadmap of tasks required to implement and tes
 ## 2. Module 1: Auth, Multi-Tenancy & Access Control (RBAC)
 
 ### 2.1 Database Models (`Organizations`, `Locations`, `Users`, `User_Location_Access`)
-- **Development:** `[ ]` Pending
-- **Testing:** `[ ]` Pending
+- **Development:** `[x]` Completed
+- **Testing:** `[x]` Completed
 
 ### 2.2 JWT Authentication & Password Hashing (`bcrypt`, Login & Token Refresh APIs)
-- **Development:** `[ ]` Pending
-- **Testing:** `[ ]` Pending
+- **Development:** `[x]` Completed
+- **Testing:** `[x]` Completed
 
 ### 2.3 Multi-Tenant Scope Middleware (`tenantScope.js` - `org_id` Enforcement)
-- **Development:** `[ ]` Pending
-- **Testing:** `[ ]` Pending
+- **Development:** `[x]` Completed
+- **Testing:** `[x]` Completed
 
 ### 2.4 Dynamic Role-Based Access Control Middleware (`rbac.js` - Admin, Manager, Inspector roles)
-- **Development:** `[ ]` Pending
-- **Testing:** `[ ]` Pending
+- **Development:** `[x]` Completed
+- **Testing:** `[x]` Completed
 
 ---
 
