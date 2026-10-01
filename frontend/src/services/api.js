@@ -1,3 +1,4 @@
+import { apiClient } from "./apiClient";
 import {
   initialOrganizations,
   initialUsers,
@@ -53,10 +54,39 @@ export const api = {
     localStorage.setItem("sclip_current_user_id", userId);
   },
 
+  // Live Backend Authentication
+  loginWithBackend: async (email, password) => {
+    try {
+      const response = await apiClient.post("/auth/login", { email, password });
+      if (response.data && response.data.token) {
+        localStorage.setItem("sclip_token", response.data.token);
+        if (response.data.user) {
+          const user = {
+            id: response.data.user.id,
+            name: response.data.user.name,
+            email: response.data.user.email,
+            role: response.data.user.role,
+            org_id: response.data.organization?.id || "org-1",
+            assignedLocations: (response.data.accessibleLocations || []).map(l => l.id),
+          };
+          api.setCurrentUser(user.id);
+          const users = api.getUsers();
+          if (!users.find(u => u.id === user.id)) {
+            saveStorage("users", [user, ...users]);
+          }
+          return { success: true, user, token: response.data.token };
+        }
+      }
+    } catch (err) {
+      console.warn("[API] Live login attempt failed, using local auth:", err.message);
+    }
+    return null;
+  },
+
   // Locations
   getLocations: () => loadStorage("locations", initialLocations),
   saveLocations: (locs) => saveStorage("locations", locs),
-  addLocation: (loc) => {
+  addLocation: async (loc) => {
     const locations = api.getLocations();
     const newLoc = {
       ...loc,
@@ -65,6 +95,22 @@ export const api = {
     };
     const updated = [newLoc, ...locations];
     api.saveLocations(updated);
+
+    // Sync to backend if token exists
+    try {
+      if (localStorage.getItem("sclip_token")) {
+        await apiClient.post("/tenancy/locations", {
+          name: loc.name,
+          code: loc.code,
+          type: loc.type,
+          state: loc.state,
+          address: loc.address,
+        });
+      }
+    } catch (err) {
+      console.warn("[API] Backend location sync notice:", err.message);
+    }
+
     return newLoc;
   },
 
@@ -105,10 +151,30 @@ export const api = {
 
     const updated = [newDoc, ...docs];
     api.saveDocuments(updated);
+
+    // Asynchronously stream file to backend API
+    try {
+      if (localStorage.getItem("sclip_token") && file) {
+        const formData = new FormData();
+        formData.append("file", file);
+        formData.append("license_type_id", docData.license_type_id);
+        if (docData.location_id) formData.append("location_id", docData.location_id);
+        if (docData.issue_date) formData.append("issue_date", docData.issue_date);
+        if (docData.expiry_date) formData.append("expiry_date", docData.expiry_date);
+        if (docData.parent_document_id) formData.append("parent_document_id", docData.parent_document_id);
+
+        await apiClient.post("/documents/upload", formData, {
+          headers: { "Content-Type": "multipart/form-data" },
+        });
+      }
+    } catch (err) {
+      console.warn("[API] Backend upload sync notice:", err.message);
+    }
+
     return newDoc;
   },
 
-  verifyDocument: (docId, approve, reason = null) => {
+  verifyDocument: async (docId, approve, reason = null) => {
     const docs = api.getDocuments();
     const user = api.getCurrentUser();
     const updated = docs.map(d => {
@@ -125,6 +191,18 @@ export const api = {
       return d;
     });
     api.saveDocuments(updated);
+
+    // Sync verification to backend
+    try {
+      if (localStorage.getItem("sclip_token")) {
+        await apiClient.patch(`/documents/${docId}/verify`, {
+          approve,
+          rejectionReason: reason,
+        });
+      }
+    } catch (err) {
+      console.warn("[API] Backend verification sync notice:", err.message);
+    }
   },
 
   renewDocument: async (originalDoc, renewedData, file) => {
@@ -258,7 +336,7 @@ export const api = {
   // Audit Links (Cloud Data Rooms)
   getAuditLinks: () => loadStorage("auditLinks", initialAuditLinks),
   saveAuditLinks: (links) => saveStorage("auditLinks", links),
-  createAuditLink: (linkData) => {
+  createAuditLink: async (linkData) => {
     const links = api.getAuditLinks();
     const token = `audit-${Date.now().toString(36)}-${Math.random().toString(36).substring(2, 6)}`;
     const newLink = {
@@ -272,18 +350,60 @@ export const api = {
     };
     const updated = [newLink, ...links];
     api.saveAuditLinks(updated);
+
+    // Sync to backend if token exists
+    try {
+      if (localStorage.getItem("sclip_token")) {
+        await apiClient.post("/data-rooms/audit-links", {
+          title: linkData.title,
+          notes: linkData.notes,
+          expiresAt: linkData.expires_at,
+          pin: linkData.pin_hash,
+          documentIds: linkData.document_ids || [],
+        });
+      }
+    } catch (err) {
+      console.warn("[API] Backend audit link sync notice:", err.message);
+    }
+
     return newLink;
   },
-  revokeAuditLink: (linkId) => {
+  revokeAuditLink: async (linkId) => {
     const links = api.getAuditLinks();
     const updated = links.map(l => l.id === linkId ? { ...l, is_active: false } : l);
     api.saveAuditLinks(updated);
+
+    try {
+      if (localStorage.getItem("sclip_token")) {
+        await apiClient.patch(`/data-rooms/audit-links/${linkId}/revoke`);
+      }
+    } catch (err) {
+      console.warn("[API] Backend revoke audit link sync notice:", err.message);
+    }
   },
   getAuditByToken: (token) => {
     const links = api.getAuditLinks();
     return links.find(l => l.token === token);
   },
-  recordAuditAccess: (token, pinEntered) => {
+  recordAuditAccess: async (token, pinEntered) => {
+    // Attempt live backend verification first
+    try {
+      const response = await apiClient.post(`/data-rooms/public/${token}/access`, {
+        pin: pinEntered,
+      });
+      if (response.data && response.data.success) {
+        return { allowed: true, link: response.data.data };
+      }
+    } catch (err) {
+      if (err.response?.status === 401) {
+        return { allowed: false, message: "Invalid PIN code entered." };
+      }
+      if (err.response?.status === 403) {
+        return { allowed: false, message: err.response.data?.message || "Audit room expired or revoked." };
+      }
+    }
+
+    // Fallback to local storage verification
     const links = api.getAuditLinks();
     let result = { allowed: false, link: null, message: "" };
 
@@ -301,7 +421,7 @@ export const api = {
         const newLog = {
           id: `log-${Date.now()}`,
           accessed_at: new Date().toISOString(),
-          ip_address: "Client (Demo IP)",
+          ip_address: "Client (Live Session)",
           user_agent: navigator.userAgent,
           success: pinValid
         };
@@ -329,5 +449,15 @@ export const api = {
     api.saveNotifications(updated);
   },
   getPreferences: () => loadStorage("preferences", initialNotificationPreferences),
-  savePreferences: (p) => saveStorage("preferences", p)
+  savePreferences: async (p) => {
+    api.savePreferencesLocally(p);
+    try {
+      if (localStorage.getItem("sclip_token")) {
+        await apiClient.patch("/notifications/preferences", p);
+      }
+    } catch (err) {
+      console.warn("[API] Backend preference sync notice:", err.message);
+    }
+  },
+  savePreferencesLocally: (p) => saveStorage("preferences", p)
 };
