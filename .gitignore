@@ -18,4 +18,8 @@ build/
 .idea/
 .DS_Store
 Thumbs.db
+# Uploaded files
+uploads/
+backend/uploads/
+
 *.log

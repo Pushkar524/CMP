@@ -1,55 +1,44 @@
-const {
-  S3Client,
-  PutObjectCommand,
-  GetObjectCommand,
-  DeleteObjectCommand,
-  HeadBucketCommand,
-  CreateBucketCommand,
-} = require('@aws-sdk/client-s3');
-const { getSignedUrl } = require('@aws-sdk/s3-request-presigner');
+const fs = require('fs');
+const path = require('path');
 const config = require('../config/env');
 
 class StorageService {
   constructor() {
-    const isMinio = config.storage.provider === 'minio';
+    this.provider = config.storage.provider || 'local';
+    this.localStorageDir = path.join(__dirname, '../../uploads');
 
-    if (isMinio) {
-      this.bucket = config.storage.minio.bucket;
-      this.client = new S3Client({
-        endpoint: config.storage.minio.endpoint,
-        region: config.storage.minio.region,
-        credentials: {
-          accessKeyId: config.storage.minio.accessKey,
-          secretAccessKey: config.storage.minio.secretKey,
-        },
-        forcePathStyle: true, // Necessary for MinIO
-      });
-    } else {
-      this.bucket = config.storage.s3.bucket;
-      this.client = new S3Client({
-        region: config.storage.s3.region,
-        credentials: {
-          accessKeyId: config.storage.s3.accessKeyId,
-          secretAccessKey: config.storage.s3.secretAccessKey,
-        },
-      });
+    // Always ensure local storage directory exists as fallback / local driver
+    if (!fs.existsSync(this.localStorageDir)) {
+      fs.mkdirSync(this.localStorageDir, { recursive: true });
     }
-  }
 
-  /**
-   * Ensures bucket exists; creates it if running locally on MinIO
-   */
-  async ensureBucketExists() {
-    try {
-      await this.client.send(new HeadBucketCommand({ Bucket: this.bucket }));
-    } catch (err) {
-      if (config.storage.provider === 'minio') {
-        try {
-          await this.client.send(new CreateBucketCommand({ Bucket: this.bucket }));
-          console.log(`[StorageService] MinIO bucket '${this.bucket}' created successfully.`);
-        } catch (createErr) {
-          console.error(`[StorageService] Failed to create MinIO bucket:`, createErr.message);
+    if (this.provider === 'minio' || this.provider === 's3') {
+      try {
+        const { S3Client } = require('@aws-sdk/client-s3');
+        if (this.provider === 'minio') {
+          this.bucket = config.storage.minio.bucket;
+          this.client = new S3Client({
+            endpoint: config.storage.minio.endpoint,
+            region: config.storage.minio.region,
+            credentials: {
+              accessKeyId: config.storage.minio.accessKey,
+              secretAccessKey: config.storage.minio.secretKey,
+            },
+            forcePathStyle: true,
+          });
+        } else {
+          this.bucket = config.storage.s3.bucket;
+          this.client = new S3Client({
+            region: config.storage.s3.region,
+            credentials: {
+              accessKeyId: config.storage.s3.accessKeyId,
+              secretAccessKey: config.storage.s3.secretAccessKey,
+            },
+          });
         }
+      } catch (err) {
+        console.warn('[StorageService] Falling back to local filesystem storage:', err.message);
+        this.provider = 'local';
       }
     }
   }
@@ -62,44 +51,91 @@ class StorageService {
    * @returns {Promise<{ key: string, bucket: string }>}
    */
   async uploadFile(fileBuffer, mimeType, key) {
-    await this.ensureBucketExists();
-    const command = new PutObjectCommand({
-      Bucket: this.bucket,
-      Key: key,
-      Body: fileBuffer,
-      ContentType: mimeType,
-    });
+    if (this.provider === 'local') {
+      const filePath = path.join(this.localStorageDir, key);
+      const fileDir = path.dirname(filePath);
+      if (!fs.existsSync(fileDir)) {
+        fs.mkdirSync(fileDir, { recursive: true });
+      }
+      await fs.promises.writeFile(filePath, fileBuffer);
+      return { key, bucket: 'local' };
+    }
 
-    await this.client.send(command);
-    return { key, bucket: this.bucket };
+    try {
+      const { PutObjectCommand } = require('@aws-sdk/client-s3');
+      const command = new PutObjectCommand({
+        Bucket: this.bucket,
+        Key: key,
+        Body: fileBuffer,
+        ContentType: mimeType,
+      });
+      await this.client.send(command);
+      return { key, bucket: this.bucket };
+    } catch (err) {
+      console.warn(`[StorageService] S3/MinIO upload failed (${err.message}). Storing locally.`);
+      const filePath = path.join(this.localStorageDir, key);
+      const fileDir = path.dirname(filePath);
+      if (!fs.existsSync(fileDir)) {
+        fs.mkdirSync(fileDir, { recursive: true });
+      }
+      await fs.promises.writeFile(filePath, fileBuffer);
+      return { key, bucket: 'local-fallback' };
+    }
   }
 
   /**
-   * Retrieves object stream from storage
+   * Retrieves object buffer from storage
    * @param {string} key 
-   * @returns {Promise<ReadableStream>}
+   * @returns {Promise<Buffer>}
    */
-  async getFileStream(key) {
-    const command = new GetObjectCommand({
-      Bucket: this.bucket,
-      Key: key,
-    });
-    const response = await this.client.send(command);
-    return response.Body;
+  async getFileBuffer(key) {
+    const localFilePath = path.join(this.localStorageDir, key);
+    if (fs.existsSync(localFilePath)) {
+      return await fs.promises.readFile(localFilePath);
+    }
+
+    if (this.client) {
+      const { GetObjectCommand } = require('@aws-sdk/client-s3');
+      const command = new GetObjectCommand({
+        Bucket: this.bucket,
+        Key: key,
+      });
+      const response = await this.client.send(command);
+      const streamToBuffer = (stream) =>
+        new Promise((resolve, reject) => {
+          const chunks = [];
+          stream.on('data', (chunk) => chunks.push(chunk));
+          stream.on('error', reject);
+          stream.on('end', () => resolve(Buffer.concat(chunks)));
+        });
+      return await streamToBuffer(response.Body);
+    }
+
+    throw new Error(`File with key '${key}' not found.`);
   }
 
   /**
-   * Generates a pre-signed URL for downloading/viewing a file
+   * Generates a download or access URL for a file
    * @param {string} key 
-   * @param {number} expiresInSeconds (default 3600 = 1 hour)
+   * @param {number} expiresInSeconds 
    * @returns {Promise<string>}
    */
   async getSignedDownloadUrl(key, expiresInSeconds = 3600) {
-    const command = new GetObjectCommand({
-      Bucket: this.bucket,
-      Key: key,
-    });
-    return await getSignedUrl(this.client, command, { expiresIn: expiresInSeconds });
+    if (this.provider === 'local' || !this.client) {
+      return `/api/documents/download/${encodeURIComponent(key)}`;
+    }
+
+    try {
+      const { GetObjectCommand } = require('@aws-sdk/client-s3');
+      const { getSignedUrl } = require('@aws-sdk/s3-request-presigner');
+      const command = new GetObjectCommand({
+        Bucket: this.bucket,
+        Key: key,
+      });
+      return await getSignedUrl(this.client, command, { expiresIn: expiresInSeconds });
+    } catch (err) {
+      return `/api/documents/download/${encodeURIComponent(key)}`;
+    }
   }
 
   /**
@@ -108,11 +144,23 @@ class StorageService {
    * @returns {Promise<void>}
    */
   async deleteFile(key) {
-    const command = new DeleteObjectCommand({
-      Bucket: this.bucket,
-      Key: key,
-    });
-    await this.client.send(command);
+    const localFilePath = path.join(this.localStorageDir, key);
+    if (fs.existsSync(localFilePath)) {
+      try {
+        await fs.promises.unlink(localFilePath);
+      } catch (e) {}
+    }
+
+    if (this.client) {
+      try {
+        const { DeleteObjectCommand } = require('@aws-sdk/client-s3');
+        const command = new DeleteObjectCommand({
+          Bucket: this.bucket,
+          Key: key,
+        });
+        await this.client.send(command);
+      } catch (e) {}
+    }
   }
 }
 
