@@ -9,6 +9,7 @@ const authRoutes = require('./modules/auth/auth.routes');
 const tenancyRoutes = require('./modules/tenancy/tenancy.routes');
 const notificationRoutes = require('./modules/notifications/notification.routes');
 const complianceRoutes = require('./modules/compliance/complianceScore.routes');
+const intelligenceRoutes = require('./modules/intelligence/intelligence.routes');
 
 const app = express();
 
@@ -31,6 +32,7 @@ app.use('/api/auth', authRoutes);
 app.use('/api/tenancy', tenancyRoutes);
 app.use('/api/notifications', notificationRoutes);
 app.use('/api/compliance', complianceRoutes);
+app.use('/api/intelligence', intelligenceRoutes);
 
 // 404 Catch-All Handler
 app.use((req, res, next) => {

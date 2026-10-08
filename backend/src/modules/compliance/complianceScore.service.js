@@ -202,6 +202,28 @@ class ComplianceScoreService {
       }
     }
 
+    // 3.5. Evaluate Cascading Dependency Failures via Intelligence Engine
+    const intelligenceService = require('../intelligence/intelligence.service');
+    const graphData = await intelligenceService.getLocationDependencyGraph(locationId, orgId);
+    let cascadingBlockedCount = 0;
+
+    for (const chain of graphData.activeRiskChains) {
+      cascadingBlockedCount++;
+      const penalty = 10.0;
+      deductions.push({
+        licenseCode: chain.targetCode,
+        licenseName: chain.targetLicense,
+        penalty,
+        reason: `Cascading Risk: Downstream operations blocked because prerequisite (${chain.blockedByName}) is ${chain.reason.toLowerCase()}`,
+        severity: 'CRITICAL',
+        status: 'CASCADING_BLOCKED',
+        recommendation: chain.recommendation,
+      });
+      suggestedActions.push(
+        `Resolve upstream block: ${chain.blockedByName} to unblock ${chain.targetLicense} (+${penalty.toFixed(1)} pts)`
+      );
+    }
+
     // 4. Calculate Final Score (Clamped between 0 and 100)
     const totalPenalty = deductions.reduce((sum, d) => sum + d.penalty, 0);
     const rawScore = 100.0 - totalPenalty;
@@ -235,6 +257,7 @@ class ComplianceScoreService {
         expiredCount,
         missingCount,
         pendingVerificationCount,
+        cascadingBlockedCount,
         totalDeductions: totalPenalty,
       },
       deductions,
