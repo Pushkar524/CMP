@@ -343,7 +343,6 @@ async function main() {
           user_id: user.id,
           alert_type: alertType,
           email_enabled: true,
-          sms_enabled: false,
           in_app_enabled: true,
         },
       });

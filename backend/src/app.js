@@ -7,6 +7,8 @@ const errorHandler = require('./middleware/errorHandler');
 // Route Handlers
 const authRoutes = require('./modules/auth/auth.routes');
 const tenancyRoutes = require('./modules/tenancy/tenancy.routes');
+const notificationRoutes = require('./modules/notifications/notification.routes');
+const complianceRoutes = require('./modules/compliance/complianceScore.routes');
 
 const app = express();
 
@@ -27,6 +29,8 @@ app.get('/health', (req, res) => {
 // Mount Module APIs
 app.use('/api/auth', authRoutes);
 app.use('/api/tenancy', tenancyRoutes);
+app.use('/api/notifications', notificationRoutes);
+app.use('/api/compliance', complianceRoutes);
 
 // 404 Catch-All Handler
 app.use((req, res, next) => {

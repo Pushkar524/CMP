@@ -170,7 +170,6 @@ class TenancyService {
           user_id: user.id,
           alert_type: type,
           email_enabled: true,
-          sms_enabled: false,
           in_app_enabled: true,
         })),
       });

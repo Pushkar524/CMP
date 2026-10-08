@@ -26,7 +26,7 @@ const config = {
   },
   
   email: {
-    provider: process.env.EMAIL_PROVIDER || 'nodemailer',
+    provider: process.env.EMAIL_PROVIDER || (process.env.RESEND_API_KEY ? 'resend' : 'nodemailer'),
     smtp: {
       host: process.env.SMTP_HOST,
       port: parseInt(process.env.SMTP_PORT, 10) || 2525,
@@ -35,12 +35,7 @@ const config = {
       from: process.env.SMTP_FROM || 'SCLIP <alerts@sclip.local>',
     },
     resendApiKey: process.env.RESEND_API_KEY,
-  },
-
-  sms: {
-    accountSid: process.env.TWILIO_ACCOUNT_SID,
-    authToken: process.env.TWILIO_AUTH_TOKEN,
-    fromNumber: process.env.TWILIO_FROM_NUMBER,
+    resendFrom: process.env.RESEND_FROM || 'SCLIP Compliance <onboarding@resend.dev>',
   },
 };
 

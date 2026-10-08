@@ -4,8 +4,17 @@ const prisma = require('./config/db');
 
 const PORT = config.port;
 
-const server = app.listen(PORT, () => {
+const server = app.listen(PORT, async () => {
   console.log(`🚀 SCLIP Server running in ${config.nodeEnv} mode on port ${PORT}`);
+
+  // Initialize storage bucket on startup
+  try {
+    const storageService = require('./services/StorageService');
+    await storageService.ensureBucketExists();
+    console.log(`📦 Storage bucket '${config.storage.minio.bucket}' is ready (${config.storage.provider})`);
+  } catch (err) {
+    console.warn(`⚠️  Storage init warning: ${err.message}`);
+  }
 });
 
 // Graceful Shutdown

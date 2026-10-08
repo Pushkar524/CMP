@@ -136,7 +136,6 @@ class AuthService {
           user_id: admin.id,
           alert_type: type,
           email_enabled: true,
-          sms_enabled: false,
           in_app_enabled: true,
         })),
       });
