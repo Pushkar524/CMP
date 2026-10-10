@@ -4,16 +4,21 @@ require('dotenv').config({ path: path.join(__dirname, '../../.env') });
 const config = {
   port: process.env.PORT || 5000,
   nodeEnv: process.env.NODE_ENV || 'development',
-  databaseUrl: process.env.DATABASE_URL,
-  jwtSecret: process.env.JWT_SECRET || 'fallback_jwt_secret',
+  
+  // Critical: These must be set in .env - no defaults for security
+  databaseUrl: process.env.DATABASE_URL || process.exit(1),
+  jwtSecret: process.env.JWT_SECRET || process.exit(1),
   jwtExpiresIn: process.env.JWT_EXPIRES_IN || '7d',
   
+  // Storage provider configuration
   storage: {
     provider: process.env.STORAGE_PROVIDER || 'minio',
     minio: {
       endpoint: process.env.MINIO_ENDPOINT || 'http://localhost:9000',
-      accessKey: process.env.MINIO_ACCESS_KEY || 'minioadmin',
-      secretKey: process.env.MINIO_SECRET_KEY || 'minioadminpassword',
+      // MINIO_ACCESS_KEY and MINIO_SECRET_KEY are required when using minio storage
+      // Defaults are removed for security - set in .env explicitly
+      accessKey: process.env.MINIO_ACCESS_KEY,
+      secretKey: process.env.MINIO_SECRET_KEY,
       bucket: process.env.MINIO_BUCKET || 'sclip-documents',
       region: process.env.MINIO_REGION || 'us-east-1',
     },

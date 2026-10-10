@@ -1,4 +1,337 @@
-import {
+// API Service for SCLIP Frontend
+// Communicates with backend via REST API calls
+// All endpoints are under /api prefix
+
+// Base API URL - configure via environment variable
+// Set REACT_APP_API_BASE in .env to point to your backend host
+const API_BASE = process.env.REACT_APP_API_BASE || 'http://localhost:5000';
+
+// ============================================================
+// Helper: perform fetch with error handling and JSON parsing
+// ============================================================
+
+async function fetchAPI(endpoint, options = {}) {
+  const url = `${API_BASE}${endpoint}`;
+  const headers = { 'Content-Type': 'application/json' };
+
+  // Add authorization header if token exists
+  const token = localStorage.getItem('sclip_auth_token');
+  if (token) {
+    headers.Authorization = `Bearer ${token}`;
+  }
+
+  const config = {
+    ...options,
+    headers: {
+      ...headers,
+      ...options.headers,
+    },
+    credentials: 'include', // send cookies if needed
+  };
+
+  const response = await fetch(url, config);
+
+  // Try to parse JSON, fall back to text
+  let data;
+  try {
+    data = await response.json();
+  } catch {
+    data = await response.text();
+  }
+
+  if (!response.ok) {
+    const message = typeof data === 'object' && data.message
+      ? data.message
+      : typeof data === 'string' && data.length > 0
+        ? data
+        : `API error: ${response.status}`;
+    throw new Error(message);
+  }
+
+  return data;
+}
+
+// ============================================================
+// Authentication API
+// ============================================================
+
+export const auth = {
+  // Login user and store auth token
+  login: async (email, password) => {
+    const data = await fetchAPI('/api/auth/login', {
+      method: 'POST',
+      body: JSON.stringify({ email, password }),
+    });
+    // Store auth token for subsequent requests
+    if (data.data && data.data.token) {
+      localStorage.setItem('sclip_auth_token', data.data.token);
+      if (data.data.user) {
+        localStorage.setItem('sclip_user_id', data.data.user.id);
+      }
+    }
+    return data;
+  },
+
+  register: async (organizationName, taxId, adminName, email, password) => {
+    return await fetchAPI('/api/auth/register', {
+      method: 'POST',
+      body: JSON.stringify({ organizationName, taxId, adminName, email, password }),
+    });
+  },
+
+  // Get current user profile
+  getCurrentUser: async () => {
+    const id = localStorage.getItem('sclip_user_id') || 'user-1';
+    return await fetchAPI(`/api/auth/me/${id}`);
+  },
+
+  // Set current user (used by AuthContext)
+  setCurrentUser: (userId) => {
+    localStorage.setItem('sclip_user_id', userId);
+  },
+
+  // Clear auth state
+  logout: () => {
+    localStorage.removeItem('sclip_auth_token');
+    localStorage.removeItem('sclip_user_id');
+  },
+};
+
+// ============================================================
+// Tenancy / Locations API
+// ============================================================
+
+export const tenancy = {
+  getLocations: async () => {
+    return await fetchAPI('/api/tenancy/locations');
+  },
+
+  getOrganization: async () => {
+    return await fetchAPI('/api/tenancy/organization');
+  },
+
+  createLocation: async (locData) => {
+    return await fetchAPI('/api/tenancy/locations', {
+      method: 'POST',
+      body: JSON.stringify(locData),
+    });
+  },
+
+  getUsers: async () => {
+    return await fetchAPI('/api/tenancy/users');
+  },
+
+  createUser: async (userData) => {
+    return await fetchAPI('/api/tenancy/users', {
+      method: 'POST',
+      body: JSON.stringify(userData),
+    });
+  },
+
+  assignLocationAccess: async (userId, locationId) => {
+    return await fetchAPI('/api/tenancy/assign-location', {
+      method: 'POST',
+      body: JSON.stringify({ userId, locationId }),
+    });
+  },
+};
+
+// ============================================================
+// Compliance Score API
+// ============================================================
+
+export const compliance = {
+  calculateLocationScore: async (locationId) => {
+    return await fetchAPI(`/api/compliance/locations/${locationId}`);
+  },
+
+  recalculateLocationScore: async (locationId) => {
+    return await fetchAPI(`/api/compliance/locations/${locationId}/recalculate`, {
+      method: 'POST',
+    });
+  },
+
+  getLocationHistory: async (locationId, limit) => {
+    const params = limit !== undefined ? `?limit=${limit}` : '';
+    return await fetchAPI(`/api/compliance/locations/${locationId}/history${params}`);
+  },
+
+  getOrganizationOverview: async () => {
+    return await fetchAPI('/api/compliance/organization/overview');
+  },
+};
+
+// ============================================================
+// Intelligence API
+// ============================================================
+
+export const intelligence = {
+  getLicenseTypes: async () => {
+    return await fetchAPI('/api/intelligence/license-types');
+  },
+
+  getDependencies: async () => {
+    return await fetchAPI('/api/intelligence/dependencies');
+  },
+
+  getRequiredRules: async (locationType, state) => {
+    const params = locationType || state
+      ? `?locationType=${encodeURIComponent(locationType || '')}&state=${encodeURIComponent(state || '')}`
+      : '';
+    return await fetchAPI(`/api/intelligence/rules${params}`);
+  },
+
+  getGlobalGraph: async () => {
+    return await fetchAPI('/api/intelligence/graph');
+  },
+
+  getLocationGraph: async (locationId, orgId) => {
+    return await fetchAPI(`/api/intelligence/locations/${locationId}/graph?orgId=${orgId}`);
+  },
+};
+
+// ============================================================
+// Documents API
+// ============================================================
+
+export const documents = {
+  getDocuments: async () => {
+    return await fetchAPI('/api/documents');
+  },
+
+  // Upload a regulatory document (multipart/form-data)
+  uploadDocument: async (docData, file) => {
+    const formData = new FormData();
+    formData.append('file', file);
+    formData.append('file_name', docData.file_name);
+    formData.append('license_type_id', docData.license_type_id);
+    formData.append('org_id', docData.org_id);
+    if (docData.location_id) {
+      formData.append('location_id', docData.location_id);
+    }
+    formData.append('version', docData.version || 1);
+
+    const token = localStorage.getItem('sclip_auth_token');
+    const response = await fetch(`${API_BASE}/api/documents`, {
+      method: 'POST',
+      body: formData,
+      headers: {
+        Authorization: `Bearer ${token}`,
+      },
+      credentials: 'include',
+    });
+
+    if (!response.ok) {
+      const err = await response.json();
+      throw new Error(err.message || `Upload failed: ${response.status}`);
+    }
+    return response.json();
+  },
+
+  // Verify/reject a document (admin action)
+  verifyDocument: async (docId, approve, reason) => {
+    const token = localStorage.getItem('sclip_auth_token');
+    return await fetchAPI(`/api/documents/${docId}/verify`, {
+      method: 'PATCH',
+      body: JSON.stringify({ approve, reason }),
+      headers: {
+        Authorization: `Bearer ${token}`,
+      },
+    });
+  },
+
+  // Create a renewal version of a document
+  renewDocument: async (originalDoc, renewedData, file) => {
+    // Create a new document version (renewal) via upload
+    return await documents.uploadDocument(renewedData, file);
+  },
+};
+
+// ============================================================
+// Notifications API
+// ============================================================
+
+export const notifications = {
+  getNotifications: async ({ page = 1, limit = 20, status = null, type = null } = {}) => {
+    const params = new URLSearchParams({ page: String(page), limit: String(limit) });
+    if (status) params.append('status', status);
+    if (type) params.append('type', type);
+    return await fetchAPI(`/api/notifications?${params}`);
+  },
+
+  getUnreadCount: async () => {
+    return await fetchAPI('/api/notifications/unread-count');
+  },
+
+  markAsRead: async (notificationId) => {
+    return await fetchAPI(`/api/notifications/${notificationId}/read`, {
+      method: 'PATCH',
+    });
+  },
+
+  markAllAsRead: async () => {
+    return await fetchAPI('/api/notifications/read-all', {
+      method: 'PATCH',
+    });
+  },
+
+  deleteNotification: async (notificationId) => {
+    return await fetchAPI(`/api/notifications/${notificationId}`, {
+      method: 'DELETE',
+    });
+  },
+
+  createTestAlert: async (title, message, type, link, sendEmail = false) => {
+    const alertType = type || 'EXPIRY_WARNING';
+    return await fetchAPI('/api/notifications/test', {
+      method: 'POST',
+      body: JSON.stringify({ title, message, type: alertType, link, sendEmail }),
+    });
+  },
+};
+
+// ============================================================
+// Audit Links API
+// ============================================================
+
+export const auditLinks = {
+  getAuditLinks: async () => {
+    return await fetchAPI('/api/audit-links');
+  },
+
+  createAuditLink: async (linkData) => {
+    return await fetchAPI('/api/audit-links', {
+      method: 'POST',
+      body: JSON.stringify(linkData),
+    });
+  },
+
+  revokeAuditLink: async (linkId) => {
+    return await fetchAPI(`/api/audit-links/${linkId}`, {
+      method: 'PATCH',
+      body: JSON.stringify({ is_active: false }),
+    });
+  },
+
+  getAuditByToken: async (token) => {
+    return await fetchAPI(`/api/audit-by-token/${token}`);
+  },
+
+  recordAuditAccess: async (token, pinEntered) => {
+    return await fetchAPI(`/api/audit-access/${token}`, {
+      method: 'POST',
+      body: JSON.stringify({ pinEntered }),
+    });
+  },
+};
+
+// ==========================================================//
+// Main api object - exported for components
+// Must maintain compatible interface with existing component code
+// ============================================================
+
+// Initial seed data (used during auth loading state)
+export const {
   initialOrganizations,
   initialUsers,
   initialLocations,
@@ -6,328 +339,132 @@ import {
   initialDependencies,
   initialRequiredRules,
   initialDocuments,
-  initialAuditLinks,
-  initialNotificationLogs,
-  initialNotificationPreferences
-} from "./mockData";
+} = require('./mockData');
 
-// Helper to initialize local storage
-const loadStorage = (key, fallback) => {
-  try {
-    const item = localStorage.getItem(`sclip_${key}`);
-    return item ? JSON.parse(item) : fallback;
-  } catch (e) {
-    return fallback;
-  }
-};
-
-const saveStorage = (key, data) => {
-  try {
-    localStorage.setItem(`sclip_${key}`, JSON.stringify(data));
-  } catch (e) {
-    console.error("Storage error:", e);
-  }
-};
-
-// Compute SHA-256 in browser for real integrity checking
-export async function computeSHA256(textOrBuffer) {
-  const enc = new TextEncoder();
-  const data = typeof textOrBuffer === "string" ? enc.encode(textOrBuffer) : textOrBuffer;
-  const hashBuffer = await crypto.subtle.digest("SHA-256", data);
-  const hashArray = Array.from(new Uint8Array(hashBuffer));
-  return hashArray.map(b => b.toString(16).padStart(2, "0")).join("");
-}
-
+// Main API object exported for components
+// All methods return data directly (raw payload from backend)
+// Components handle their own error states via try/catch
 export const api = {
-  // Organizations
-  getOrganizations: () => loadStorage("orgs", initialOrganizations),
-  
-  // Users & Auth
-  getUsers: () => loadStorage("users", initialUsers),
-  getCurrentUser: () => {
-    const users = api.getUsers();
-    const storedId = localStorage.getItem("sclip_current_user_id") || "user-1";
-    return users.find(u => u.id === storedId) || users[0];
-  },
-  setCurrentUser: (userId) => {
-    localStorage.setItem("sclip_current_user_id", userId);
+  // --- Organizations ---
+  getOrganizations: async () => {
+    const data = await tenancy.getOrganization();
+    return data.organizations || [data];
   },
 
-  // Locations
-  getLocations: () => loadStorage("locations", initialLocations),
-  saveLocations: (locs) => saveStorage("locations", locs),
-  addLocation: (loc) => {
-    const locations = api.getLocations();
-    const newLoc = {
-      ...loc,
-      id: `loc-${Date.now()}`,
-      current_compliance_score: 100.0
-    };
-    const updated = [newLoc, ...locations];
-    api.saveLocations(updated);
-    return newLoc;
+  getUsers: async () => {
+    const data = await tenancy.getUsers();
+    return data.users || [];
   },
 
-  // License Types & Dependencies
-  getLicenseTypes: () => loadStorage("licenseTypes", initialLicenseTypes),
-  getDependencies: () => loadStorage("dependencies", initialDependencies),
-  getRequiredRules: () => loadStorage("requiredRules", initialRequiredRules),
-
-  // Documents
-  getDocuments: () => loadStorage("documents", initialDocuments),
-  saveDocuments: (docs) => saveStorage("documents", docs),
-  
-  uploadDocument: async (docData, file) => {
-    const docs = api.getDocuments();
-    let hash = "";
-    if (file) {
-      const buffer = await file.arrayBuffer();
-      hash = await computeSHA256(buffer);
-    } else {
-      hash = await computeSHA256(docData.file_name + Date.now());
-    }
-
-    const newDoc = {
-      ...docData,
-      id: `doc-${Date.now()}`,
-      sha256_hash: hash,
-      status: "PENDING_VERIFICATION",
-      file_size: file ? file.size : 1245000,
-      mime_type: file ? file.type : "application/pdf",
-      storage_key: `sclip-docs/${new Date().getFullYear()}/${docData.file_name}`,
-      uploaded_by_id: api.getCurrentUser().id,
-      uploaded_by_name: api.getCurrentUser().name,
-      verified_by_id: null,
-      verified_by_name: null,
-      verified_at: null,
-      version: docData.parent_document_id ? (docData.parent_version || 1) + 1 : 1,
-    };
-
-    const updated = [newDoc, ...docs];
-    api.saveDocuments(updated);
-    return newDoc;
+  getCurrentUser: async () => {
+    const data = await auth.getCurrentUser();
+    return data;
   },
 
-  verifyDocument: (docId, approve, reason = null) => {
-    const docs = api.getDocuments();
-    const user = api.getCurrentUser();
-    const updated = docs.map(d => {
-      if (d.id === docId) {
-        return {
-          ...d,
-          status: approve ? "VERIFIED" : "REJECTED",
-          rejection_reason: approve ? null : reason,
-          verified_by_id: user.id,
-          verified_by_name: user.name,
-          verified_at: new Date().toISOString()
-        };
-      }
-      return d;
-    });
-    api.saveDocuments(updated);
+  setCurrentUser: auth.setCurrentUser,
+  logout: auth.logout,
+
+  // --- Locations ---
+  getLocations: async () => {
+    const data = await tenancy.getLocations();
+    return data.locations || [];
   },
 
-  renewDocument: async (originalDoc, renewedData, file) => {
-    const renewed = await api.uploadDocument({
-      ...renewedData,
-      parent_document_id: originalDoc.id,
-      parent_version: originalDoc.version || 1
-    }, file);
-    return renewed;
-  },
+  saveLocations: () => {},
 
-  // Dynamic Rule-Based Compliance Score Engine (Section 11 in README)
-  calculateLocationScore: (locationId) => {
-    const locations = api.getLocations();
-    const loc = locations.find(l => l.id === locationId);
-    if (!loc) return { score: 100, breakdown: {}, suggestions: [] };
-
-    const licenseTypes = api.getLicenseTypes();
-    const requiredRules = api.getRequiredRules();
-    const dependencies = api.getDependencies();
-    const docs = api.getDocuments();
-
-    // 1. Determine mandatory licenses for this location type and state
-    const required = requiredRules.filter(
-      r => r.location_type === loc.type && (r.state === null || r.state === loc.state)
-    );
-
-    const suggestions = [];
-    let earnedPoints = 0;
-    const maxPoints = Math.max(required.length * 25, 100);
-
-    // Track status of licenses at this location
-    const locationDocs = docs.filter(d => d.location_id === loc.id);
-
-    // Check gaps (missing mandatory licenses)
-    const gaps = [];
-    required.forEach(req => {
-      const lt = licenseTypes.find(t => t.id === req.license_type_id);
-      const matchingDoc = locationDocs.find(d => d.license_type_id === req.license_type_id);
-
-      if (!matchingDoc) {
-        gaps.push(lt ? lt.name : "License");
-        suggestions.push({
-          type: "GAP",
-          severity: "HIGH",
-          title: `Missing Mandatory License: ${lt?.name || 'Required License'}`,
-          desc: `Location type '${loc.type}' in ${loc.state} mandates ${lt?.name}. No document has been uploaded yet.`
-        });
-      } else {
-        // Document exists: score status & expiry
-        let docScore = 0;
-        if (matchingDoc.status === "VERIFIED") {
-          if (lt?.is_lifetime_valid || !matchingDoc.expiry_date) {
-            docScore = 25; // Full marks for lifetime valid
-          } else {
-            const daysLeft = Math.ceil((new Date(matchingDoc.expiry_date) - new Date()) / (1000 * 60 * 60 * 24));
-            if (daysLeft < 0) {
-              docScore = 0; // Expired
-              suggestions.push({
-                type: "EXPIRED",
-                severity: "CRITICAL",
-                title: `Expired License: ${lt?.name}`,
-                desc: `Expired on ${matchingDoc.expiry_date}. Immediate renewal required.`
-              });
-            } else if (daysLeft <= 30) {
-              docScore = 15; // Proximity to expiry penalty
-              suggestions.push({
-                type: "EXPIRING_SOON",
-                severity: "MEDIUM",
-                title: `Expiring in ${daysLeft} days: ${lt?.name}`,
-                desc: `Renewal window open. Submit renewal to avoid compliance score drop.`
-              });
-            } else {
-              docScore = 25; // Healthy
-            }
-          }
-        } else if (matchingDoc.status === "PENDING_VERIFICATION") {
-          docScore = 10;
-          suggestions.push({
-            type: "PENDING",
-            severity: "LOW",
-            title: `Verification Pending: ${lt?.name}`,
-            desc: `Document uploaded. Awaiting Org Admin review and sign-off.`
-          });
-        } else {
-          docScore = 0;
-        }
-
-        // Check Cascading Dependency Risk
-        const depOnThis = dependencies.find(d => d.license_type_id === matchingDoc.license_type_id);
-        if (depOnThis) {
-          const prereqDoc = locationDocs.find(d => d.license_type_id === depOnThis.prerequisite_license_type_id);
-          const prereqLt = licenseTypes.find(t => t.id === depOnThis.prerequisite_license_type_id);
-          const isPrereqLapsed = !prereqDoc || prereqDoc.status === "EXPIRED" || 
-            (prereqDoc.expiry_date && new Date(prereqDoc.expiry_date) < new Date());
-
-          if (isPrereqLapsed) {
-            docScore = Math.max(0, docScore - 15); // Cascading risk penalty
-            suggestions.push({
-              type: "CASCADING_RISK",
-              severity: "CRITICAL",
-              title: `Cascading Risk: ${lt?.name} blocked by ${prereqLt?.name || 'Prerequisite'}`,
-              desc: `Prerequisite ${prereqLt?.name} has lapsed! Even though this license appears valid, statutory validity is suspended.`
-            });
-          }
-        }
-
-        earnedPoints += docScore;
-      }
-    });
-
-    const finalScore = Math.min(100, Math.round((earnedPoints / maxPoints) * 100));
-
-    // Update location cache
-    loc.current_compliance_score = finalScore;
-    api.saveLocations(locations);
-
-    return {
-      score: finalScore,
-      breakdown: {
-        totalMandatory: required.length,
-        uploadedCount: locationDocs.length,
-        gapsCount: gaps.length,
-        earnedPoints,
-        maxPoints
-      },
-      suggestions
-    };
-  },
-
-  // Audit Links (Cloud Data Rooms)
-  getAuditLinks: () => loadStorage("auditLinks", initialAuditLinks),
-  saveAuditLinks: (links) => saveStorage("auditLinks", links),
-  createAuditLink: (linkData) => {
-    const links = api.getAuditLinks();
-    const token = `audit-${Date.now().toString(36)}-${Math.random().toString(36).substring(2, 6)}`;
-    const newLink = {
-      ...linkData,
-      id: `al-${Date.now()}`,
-      token,
-      created_by_id: api.getCurrentUser().id,
-      created_by_name: api.getCurrentUser().name,
-      is_active: true,
-      access_logs: []
-    };
-    const updated = [newLink, ...links];
-    api.saveAuditLinks(updated);
-    return newLink;
-  },
-  revokeAuditLink: (linkId) => {
-    const links = api.getAuditLinks();
-    const updated = links.map(l => l.id === linkId ? { ...l, is_active: false } : l);
-    api.saveAuditLinks(updated);
-  },
-  getAuditByToken: (token) => {
-    const links = api.getAuditLinks();
-    return links.find(l => l.token === token);
-  },
-  recordAuditAccess: (token, pinEntered) => {
-    const links = api.getAuditLinks();
-    let result = { allowed: false, link: null, message: "" };
-
-    const updated = links.map(link => {
-      if (link.token === token) {
-        if (!link.is_active) {
-          result = { allowed: false, message: "This audit data room has been revoked by the organization." };
-          return link;
-        }
-        if (new Date(link.expires_at) < new Date()) {
-          result = { allowed: false, message: "This audit share link has expired." };
-          return link;
-        }
-        const pinValid = !link.pin_hash || link.pin_hash === pinEntered;
-        const newLog = {
-          id: `log-${Date.now()}`,
-          accessed_at: new Date().toISOString(),
-          ip_address: "Client (Demo IP)",
-          user_agent: navigator.userAgent,
-          success: pinValid
-        };
-        link.access_logs = [newLog, ...(link.access_logs || [])];
-
-        if (pinValid) {
-          result = { allowed: true, link };
-        } else {
-          result = { allowed: false, message: "Invalid PIN code entered." };
-        }
-      }
-      return link;
-    });
-
-    api.saveAuditLinks(updated);
+  addLocation: async (loc) => {
+    const newLoc = { ...loc, id: `loc-${Date.now()}`, current_compliance_score: 100.0 };
+    const result = await tenancy.createLocation(newLoc);
     return result;
   },
 
-  // Notifications
-  getNotifications: () => loadStorage("notifications", initialNotificationLogs),
-  saveNotifications: (n) => saveStorage("notifications", n),
-  markNotificationRead: (id) => {
-    const notifs = api.getNotifications();
-    const updated = notifs.map(n => n.id === id ? { ...n, read: true } : n);
-    api.saveNotifications(updated);
+  // --- License Types & Dependencies ---
+  getLicenseTypes: async () => {
+    const data = await intelligence.getLicenseTypes();
+    return data;
   },
-  getPreferences: () => loadStorage("preferences", initialNotificationPreferences),
-  savePreferences: (p) => saveStorage("preferences", p)
+
+  getDependencies: async () => {
+    const data = await intelligence.getDependencies();
+    return data;
+  },
+
+  getRequiredRules: async () => {
+    const data = await intelligence.getRequiredRules();
+    return data;
+  },
+
+  // --- Documents ---
+  getDocuments: async () => {
+    const data = await documents.getDocuments();
+    return data.documents || [];
+  },
+
+  saveDocuments: () => {},
+
+  uploadDocument: async (docData, file) => {
+    const result = await documents.uploadDocument(docData, file);
+    return result;
+  },
+
+  verifyDocument: async (docId, approve, reason) => {
+    const result = await documents.verifyDocument(docId, approve, reason);
+    return result;
+  },
+
+  renewDocument: async (originalDoc, renewedData, file) => {
+    const result = await documents.renewDocument(originalDoc, renewedData, file);
+    return result;
+  },
+
+  // --- Compliance Score Engine ---
+  calculateLocationScore: async (locationId) => {
+    const result = await compliance.calculateLocationScore(locationId);
+    return result;
+  },
+
+  // --- Audit Links ---
+  getAuditLinks: async () => {
+    const data = await auditLinks.getAuditLinks();
+    return data.audit_links || [];
+  },
+
+  createAuditLink: async (linkData) => {
+    const result = await auditLinks.createAuditLink(linkData);
+    return result;
+  },
+
+  revokeAuditLink: async (linkId) => {
+    const result = await auditLinks.revokeAuditLink(linkId);
+    return result;
+  },
+
+  // --- Notifications ---
+  getNotifications: async () => {
+    const data = await notifications.getNotifications();
+    return data.notifications || [];
+  },
+
+  getPreferences: () => ({
+    email_enabled: true,
+    sms_enabled: false,
+    in_app_enabled: true,
+    expiry_warning: true,
+    lapsed_license: true,
+    cascading_risk: true,
+  }),
+
+  savePreferences: () => {},
+
+  // --- Utility ---
+  computeSHA256: async (textOrBuffer) => {
+    const enc = new TextEncoder();
+    const data = typeof textOrBuffer === "string" ? enc.encode(textOrBuffer) : textOrBuffer;
+    if (typeof crypto !== 'undefined' && crypto.subtle) {
+      const hashBuffer = await crypto.subtle.digest("SHA-256", data);
+      const hashArray = Array.from(new Uint8Array(hashBuffer));
+      return hashArray.map(b => b.toString(16).padStart(2, "0")).join("");
+    }
+    return require('crypto').createHash('sha256').update(typeof textOrBuffer === 'string' ? textOrBuffer : JSON.stringify(textOrBuffer)).digest('hex');
+  },
 };
