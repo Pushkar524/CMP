@@ -5,11 +5,13 @@ const cors = require('cors');
 const errorHandler = require('./middleware/errorHandler');
 
 // Route Handlers
-const authRoutes = require('./modules/auth/auth.routes');
-const tenancyRoutes = require('./modules/tenancy/tenancy.routes');
+const authRoutes        = require('./modules/auth/auth.routes');
+const tenancyRoutes     = require('./modules/tenancy/tenancy.routes');
 const notificationRoutes = require('./modules/notifications/notification.routes');
-const complianceRoutes = require('./modules/compliance/complianceScore.routes');
+const complianceRoutes  = require('./modules/compliance/complianceScore.routes');
 const intelligenceRoutes = require('./modules/intelligence/intelligence.routes');
+const documentRoutes    = require('./modules/documents/document.routes');
+const auditLinkRoutes   = require('./modules/auditLinks/auditLink.routes');
 
 const app = express();
 
@@ -28,11 +30,13 @@ app.get('/health', (req, res) => {
 });
 
 // Mount Module APIs
-app.use('/api/auth', authRoutes);
-app.use('/api/tenancy', tenancyRoutes);
+app.use('/api/auth',          authRoutes);
+app.use('/api/tenancy',       tenancyRoutes);
 app.use('/api/notifications', notificationRoutes);
-app.use('/api/compliance', complianceRoutes);
-app.use('/api/intelligence', intelligenceRoutes);
+app.use('/api/compliance',    complianceRoutes);
+app.use('/api/intelligence',  intelligenceRoutes);
+app.use('/api/documents',     documentRoutes);
+app.use('/api/audit-links',   auditLinkRoutes);
 
 // 404 Catch-All Handler
 app.use((req, res, next) => {

@@ -4,6 +4,7 @@ import { AuthProvider } from "./context/AuthContext";
 import { NotificationProvider } from "./context/NotificationContext";
 import Layout from "./components/Layout";
 import Login from "./pages/Auth/Login";
+import Register from "./pages/Auth/Register";
 import Dashboard from "./pages/Dashboard/Dashboard";
 import Locations from "./pages/Locations/Locations";
 import Documents from "./pages/Documents/Documents";
@@ -19,6 +20,7 @@ function App() {
           <Routes>
             {/* Public Auth / Login */}
             <Route path="/login" element={<Login />} />
+            <Route path="/register" element={<Register />} />
 
             {/* Public External Inspector Cloud Data Room */}
             <Route path="/audit/:token" element={<AuditView />} />

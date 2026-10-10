@@ -2,9 +2,10 @@
 // Communicates with backend via REST API calls
 // All endpoints are under /api prefix
 
-// Base API URL - configure via environment variable
-// Set REACT_APP_API_BASE in .env to point to your backend host
-const API_BASE = process.env.REACT_APP_API_BASE || 'http://localhost:5000';
+// Base API URL
+// In development, Vite proxies /api/* to localhost:5000, so we use an empty base.
+// In production, set VITE_API_BASE in .env (e.g. https://api.yourapp.com)
+const API_BASE = import.meta.env.VITE_API_BASE || '';
 
 // ============================================================
 // Helper: perform fetch with error handling and JSON parsing
@@ -79,10 +80,9 @@ export const auth = {
     });
   },
 
-  // Get current user profile
+  // Get current user profile (JWT-protected — token identifies the user server-side)
   getCurrentUser: async () => {
-    const id = localStorage.getItem('sclip_user_id') || 'user-1';
-    return await fetchAPI(`/api/auth/me/${id}`);
+    return await fetchAPI('/api/auth/me');
   },
 
   // Set current user (used by AuthContext)
@@ -314,32 +314,21 @@ export const auditLinks = {
   },
 
   getAuditByToken: async (token) => {
-    return await fetchAPI(`/api/audit-by-token/${token}`);
+    return await fetchAPI(`/api/audit-links/by-token/${token}`);
   },
 
   recordAuditAccess: async (token, pinEntered) => {
-    return await fetchAPI(`/api/audit-access/${token}`, {
+    return await fetchAPI(`/api/audit-links/access/${token}`, {
       method: 'POST',
       body: JSON.stringify({ pinEntered }),
     });
   },
 };
 
-// ==========================================================//
+// ============================================================
 // Main api object - exported for components
 // Must maintain compatible interface with existing component code
 // ============================================================
-
-// Initial seed data (used during auth loading state)
-export const {
-  initialOrganizations,
-  initialUsers,
-  initialLocations,
-  initialLicenseTypes,
-  initialDependencies,
-  initialRequiredRules,
-  initialDocuments,
-} = require('./mockData');
 
 // Main API object exported for components
 // All methods return data directly (raw payload from backend)
@@ -460,11 +449,8 @@ export const api = {
   computeSHA256: async (textOrBuffer) => {
     const enc = new TextEncoder();
     const data = typeof textOrBuffer === "string" ? enc.encode(textOrBuffer) : textOrBuffer;
-    if (typeof crypto !== 'undefined' && crypto.subtle) {
-      const hashBuffer = await crypto.subtle.digest("SHA-256", data);
-      const hashArray = Array.from(new Uint8Array(hashBuffer));
-      return hashArray.map(b => b.toString(16).padStart(2, "0")).join("");
-    }
-    return require('crypto').createHash('sha256').update(typeof textOrBuffer === 'string' ? textOrBuffer : JSON.stringify(textOrBuffer)).digest('hex');
+    const hashBuffer = await crypto.subtle.digest("SHA-256", data);
+    const hashArray = Array.from(new Uint8Array(hashBuffer));
+    return hashArray.map(b => b.toString(16).padStart(2, "0")).join("");
   },
 };
