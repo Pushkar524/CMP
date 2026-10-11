@@ -48,6 +48,22 @@ class TenancyController {
   }
 
   /**
+   * PATCH /api/tenancy/locations/:locationId
+   */
+  async updateLocation(req, res, next) {
+    try {
+      const result = await tenancyService.updateLocation(req.orgId, req.params.locationId, req.user, req.body);
+      res.status(200).json({
+        success: true,
+        message: 'Location details updated successfully.',
+        data: result,
+      });
+    } catch (err) {
+      next(err);
+    }
+  }
+
+  /**
    * GET /api/tenancy/users
    */
   async getUsers(req, res, next) {
