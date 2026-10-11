@@ -25,11 +25,25 @@ export default function Dashboard() {
   const [showUploadModal, setShowUploadModal] = useState(false);
   const [isRecalculating, setIsRecalculating] = useState(false);
 
-  const loadData = () => {
-    setLocations(api.getLocations());
-    setDocuments(api.getDocuments());
-    setLicenseTypes(api.getLicenseTypes());
-    setDependencies(api.getDependencies());
+  const loadData = async () => {
+    try {
+      const [nextLocations, nextDocuments, nextLicenseTypes, nextDependencies] = await Promise.all([
+        api.getLocations(),
+        api.getDocuments(),
+        api.getLicenseTypes(),
+        api.getDependencies(),
+      ]);
+      setLocations(Array.isArray(nextLocations) ? nextLocations : []);
+      setDocuments(Array.isArray(nextDocuments) ? nextDocuments : []);
+      setLicenseTypes(Array.isArray(nextLicenseTypes) ? nextLicenseTypes : []);
+      setDependencies(Array.isArray(nextDependencies) ? nextDependencies : []);
+    } catch (error) {
+      console.error("Dashboard data loading failed", error);
+      setLocations([]);
+      setDocuments([]);
+      setLicenseTypes([]);
+      setDependencies([]);
+    }
   };
 
   useEffect(() => {
