@@ -33,10 +33,22 @@ export default function Documents() {
   const [historyTarget, setHistoryTarget] = useState(null);
   const [verifiedHashIds, setVerifiedHashIds] = useState([]);
 
-  const loadData = () => {
-    setDocuments(api.getDocuments());
-    setLocations(api.getLocations());
-    setLicenseTypes(api.getLicenseTypes());
+  const loadData = async () => {
+    try {
+      const [nextDocuments, nextLocations, nextLicenseTypes] = await Promise.all([
+        api.getDocuments(),
+        api.getLocations(),
+        api.getLicenseTypes(),
+      ]);
+      setDocuments(Array.isArray(nextDocuments) ? nextDocuments : []);
+      setLocations(Array.isArray(nextLocations) ? nextLocations : []);
+      setLicenseTypes(Array.isArray(nextLicenseTypes) ? nextLicenseTypes : []);
+    } catch (error) {
+      console.error("Documents data loading failed", error);
+      setDocuments([]);
+      setLocations([]);
+      setLicenseTypes([]);
+    }
   };
 
   useEffect(() => {
@@ -48,9 +60,9 @@ export default function Documents() {
     loadData();
   };
 
-  const handleVerify = (docId, approve, reason) => {
-    api.verifyDocument(docId, approve, reason);
-    loadData();
+  const handleVerify = async (docId, approve, reason) => {
+    await api.verifyDocument(docId, approve, reason);
+    await loadData();
   };
 
   const handleCheckIntegrity = (doc) => {
