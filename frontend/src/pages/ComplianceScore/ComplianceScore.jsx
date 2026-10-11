@@ -64,6 +64,12 @@ export default function ComplianceScore() {
 
   const selectedLoc = locations.find(l => l.id === selectedLocationId);
   const locDocs = documents.filter(d => d.location_id === selectedLocationId);
+  const scoreBreakdown = scoreResult?.breakdown || {};
+  const scoreSummary = scoreBreakdown.summary || {};
+  const suggestions = scoreResult?.suggestions || scoreBreakdown.suggestedActions || [];
+  const totalMandatory = scoreBreakdown.totalMandatory ?? scoreSummary.totalRequired ?? 0;
+  const uploadedCount = scoreBreakdown.uploadedCount ?? scoreSummary.compliantCount ?? 0;
+  const gapsCount = scoreBreakdown.gapsCount ?? scoreSummary.missingCount ?? 0;
 
   return (
     <div className="space-y-6">
@@ -124,19 +130,19 @@ export default function ComplianceScore() {
                 <div className="flex justify-between py-1 border-b border-gray-100">
                   <span className="text-gray-500">Statutory Mandatory Set:</span>
                   <span className="font-bold text-gray-900">
-                    {scoreResult.breakdown.totalMandatory} Licenses
+                    {totalMandatory} Licenses
                   </span>
                 </div>
                 <div className="flex justify-between py-1 border-b border-gray-100">
                   <span className="text-gray-500">Uploaded & Verified:</span>
                   <span className="font-bold text-emerald-600">
-                    {scoreResult.breakdown.uploadedCount} Active
+                    {uploadedCount} Active
                   </span>
                 </div>
                 <div className="flex justify-between py-1 border-b border-gray-100">
                   <span className="text-gray-500">Jurisdictional Gaps:</span>
                   <span className="font-bold text-red-600">
-                    {scoreResult.breakdown.gapsCount} Missing
+                    {gapsCount} Missing
                   </span>
                 </div>
               </div>
@@ -157,12 +163,12 @@ export default function ComplianceScore() {
                 </h3>
               </div>
               <span className="text-xs font-bold text-gray-400">
-                {scoreResult.suggestions.length} Actionable Items
+                {suggestions.length} Actionable Items
               </span>
             </div>
 
             <div className="space-y-3 max-h-96 overflow-y-auto pr-1">
-              {scoreResult.suggestions.length === 0 ? (
+              {suggestions.length === 0 ? (
                 <div className="p-8 text-center bg-emerald-50 rounded-xl border border-emerald-100">
                   <CheckCircle2 className="w-10 h-10 text-emerald-600 mx-auto mb-2" />
                   <h4 className="text-sm font-bold text-emerald-950">100% Fully Compliant</h4>
@@ -171,7 +177,7 @@ export default function ComplianceScore() {
                   </p>
                 </div>
               ) : (
-                scoreResult.suggestions.map((sug, idx) => {
+                suggestions.map((sug, idx) => {
                   const isCritical = sug.severity === "CRITICAL";
                   const isHigh = sug.severity === "HIGH";
 
