@@ -73,10 +73,21 @@ export const auth = {
     return data;
   },
 
-  register: async (organizationName, taxId, adminName, email, password) => {
+  register: async ({ organizationName, taxId, adminName, email, password, industry, website, phone, address, branches }) => {
     return await fetchAPI('/api/auth/register', {
       method: 'POST',
-      body: JSON.stringify({ organizationName, taxId, adminName, email, password }),
+      body: JSON.stringify({
+        organizationName,
+        taxId,
+        adminName,
+        email,
+        password,
+        industry,
+        website,
+        phone,
+        address,
+        branches,
+      }),
     });
   },
 

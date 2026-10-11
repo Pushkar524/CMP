@@ -1,5 +1,6 @@
 import React, { useState } from "react";
 import { useNavigate, Link } from "react-router-dom";
+import { auth } from "../../services/api";
 import {
   Shield, Building2, User, Mail, Lock, Phone,
   Plus, Trash2, ArrowRight, ArrowLeft, CheckCircle2,
@@ -21,6 +22,7 @@ export default function Register() {
   const [step, setStep] = useState(0);
   const [submitting, setSubmitting] = useState(false);
   const [done, setDone] = useState(false);
+  const [error, setError] = useState("");
 
   // Step 1 — Org
   const [org, setOrg] = useState({
@@ -54,10 +56,27 @@ export default function Register() {
 
   const handleSubmit = async () => {
     setSubmitting(true);
-    await new Promise(r => setTimeout(r, 1800)); // Simulate API call
-    setSubmitting(false);
-    setDone(true);
-    setTimeout(() => navigate("/login"), 2500);
+    setError("");
+    try {
+      await auth.register({
+        organizationName: org.name,
+        taxId: org.taxId,
+        adminName: admin.name,
+        email: admin.email,
+        password: admin.password,
+        industry: org.industry,
+        website: org.website,
+        phone: org.phone,
+        address: org.address,
+        branches: branches.map(({ id, ...branch }) => branch),
+      });
+      setDone(true);
+      setTimeout(() => navigate("/login"), 2500);
+    } catch (registrationError) {
+      setError(registrationError.message || "Registration failed. Please try again.");
+    } finally {
+      setSubmitting(false);
+    }
   };
 
   // ── Done screen ───────────────────────────────────────────
@@ -124,6 +143,11 @@ export default function Register() {
         {/* Card */}
         <div className="w-full max-w-2xl">
           <div className="bg-slate-900 border border-slate-800 rounded-3xl shadow-2xl overflow-hidden">
+            {error && (
+              <div className="mx-8 mt-8 rounded-xl border border-red-800/60 bg-red-950/40 px-4 py-3 text-xs text-red-300">
+                {error}
+              </div>
+            )}
 
             {/* ── STEP 0: Organization Details ───────────────────── */}
             {step === 0 && (
