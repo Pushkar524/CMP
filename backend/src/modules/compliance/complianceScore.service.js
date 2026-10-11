@@ -224,9 +224,13 @@ class ComplianceScoreService {
       );
     }
 
+    if (!location.profile_completed) {
+      suggestedActions.unshift('Complete the location profile before uploading compliance documents.');
+    }
+
     // 4. Calculate Final Score (Clamped between 0 and 100)
     const totalPenalty = deductions.reduce((sum, d) => sum + d.penalty, 0);
-    const rawScore = 100.0 - totalPenalty;
+    const rawScore = location.profile_completed ? 100.0 - totalPenalty : 0.0;
     const finalScore = Math.max(0.0, Math.min(100.0, Math.round(rawScore * 10) / 10));
 
     // Determine Health Status
