@@ -1,6 +1,6 @@
 import React from "react";
 import { BrowserRouter as Router, Routes, Route, Navigate } from "react-router-dom";
-import { AuthProvider } from "./context/AuthContext";
+import { AuthProvider, useAuth } from "./context/AuthContext";
 import { NotificationProvider } from "./context/NotificationContext";
 import Layout from "./components/Layout";
 import Login from "./pages/Auth/Login";
@@ -11,6 +11,16 @@ import Documents from "./pages/Documents/Documents";
 import ComplianceScore from "./pages/ComplianceScore/ComplianceScore";
 import AuditLinks from "./pages/AuditLinks/AuditLinks";
 import AuditView from "./pages/AuditView/AuditView";
+
+function ProtectedLayout() {
+  const { user, loading } = useAuth();
+
+  if (loading) {
+    return <div className="flex h-screen items-center justify-center bg-slate-50 text-sm text-slate-500">Loading workspace...</div>;
+  }
+
+  return user ? <Layout /> : <Navigate to="/login" replace />;
+}
 
 function App() {
   return (
@@ -26,7 +36,7 @@ function App() {
             <Route path="/audit/:token" element={<AuditView />} />
 
             {/* Authenticated Management Platform */}
-            <Route path="/" element={<Layout />}>
+            <Route path="/" element={<ProtectedLayout />}>
               <Route index element={<Navigate to="/dashboard" replace />} />
               <Route path="dashboard" element={<Dashboard />} />
               <Route path="locations" element={<Locations />} />
