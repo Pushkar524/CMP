@@ -5,17 +5,20 @@ import { useAuth } from "../../context/AuthContext";
 
 export default function Login() {
   const navigate = useNavigate();
-  const { allUsers, switchUser } = useAuth();
-  const [email, setEmail] = useState("anantha@apexretail.in");
-  const [password, setPassword] = useState("password123");
+  const { allUsers, login, switchUser } = useAuth();
+  const [email, setEmail] = useState("admin@acmeretail.com");
+  const [password, setPassword] = useState("Password@123");
+  const [error, setError] = useState("");
 
-  const handleLogin = (e) => {
+  const handleLogin = async (e) => {
     e.preventDefault();
-    const found = allUsers.find(u => u.email.toLowerCase() === email.toLowerCase());
-    if (found) {
-      switchUser(found.id);
+    setError("");
+    try {
+      await login(email, password);
+      navigate("/dashboard");
+    } catch (loginError) {
+      setError(loginError.message);
     }
-    navigate("/dashboard");
   };
 
   const handleQuickPersona = (user) => {
@@ -39,6 +42,7 @@ export default function Login() {
       <div className="mt-8 sm:mx-auto sm:w-full sm:max-w-md px-4 sm:px-0">
         <div className="bg-white py-8 px-6 shadow-2xl rounded-3xl sm:px-10 border border-slate-800">
           <form className="space-y-4" onSubmit={handleLogin}>
+            {error && <div className="rounded-lg bg-red-50 px-3 py-2 text-xs text-red-700">{error}</div>}
             <div>
               <label className="block text-xs font-bold text-gray-700 uppercase tracking-wider mb-1">
                 Corporate Email Address
