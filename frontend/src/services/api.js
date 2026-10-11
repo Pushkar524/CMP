@@ -103,11 +103,13 @@ export const auth = {
 
 export const tenancy = {
   getLocations: async () => {
-    return await fetchAPI('/api/tenancy/locations');
+    const response = await fetchAPI('/api/tenancy/locations');
+    return response.data || [];
   },
 
   getOrganization: async () => {
-    return await fetchAPI('/api/tenancy/organization');
+    const response = await fetchAPI('/api/tenancy/organization');
+    return response.data;
   },
 
   createLocation: async (locData) => {
@@ -117,8 +119,16 @@ export const tenancy = {
     });
   },
 
+  updateLocation: async (locationId, locationData) => {
+    return await fetchAPI(`/api/tenancy/locations/${locationId}`, {
+      method: 'PATCH',
+      body: JSON.stringify(locationData),
+    });
+  },
+
   getUsers: async () => {
-    return await fetchAPI('/api/tenancy/users');
+    const response = await fetchAPI('/api/tenancy/users');
+    return response.data || [];
   },
 
   createUser: async (userData) => {
@@ -142,22 +152,26 @@ export const tenancy = {
 
 export const compliance = {
   calculateLocationScore: async (locationId) => {
-    return await fetchAPI(`/api/compliance/locations/${locationId}`);
+    const response = await fetchAPI(`/api/compliance/locations/${locationId}`);
+    return response.data;
   },
 
   recalculateLocationScore: async (locationId) => {
-    return await fetchAPI(`/api/compliance/locations/${locationId}/recalculate`, {
+    const response = await fetchAPI(`/api/compliance/locations/${locationId}/recalculate`, {
       method: 'POST',
     });
+    return response.data;
   },
 
   getLocationHistory: async (locationId, limit) => {
     const params = limit !== undefined ? `?limit=${limit}` : '';
-    return await fetchAPI(`/api/compliance/locations/${locationId}/history${params}`);
+    const response = await fetchAPI(`/api/compliance/locations/${locationId}/history${params}`);
+    return response.data || [];
   },
 
   getOrganizationOverview: async () => {
-    return await fetchAPI('/api/compliance/organization/overview');
+    const response = await fetchAPI('/api/compliance/organization/overview');
+    return response.data;
   },
 };
 
@@ -167,22 +181,26 @@ export const compliance = {
 
 export const intelligence = {
   getLicenseTypes: async () => {
-    return await fetchAPI('/api/intelligence/license-types');
+    const response = await fetchAPI('/api/intelligence/license-types');
+    return response.data || [];
   },
 
   getDependencies: async () => {
-    return await fetchAPI('/api/intelligence/dependencies');
+    const response = await fetchAPI('/api/intelligence/dependencies');
+    return response.data || [];
   },
 
   getRequiredRules: async (locationType, state) => {
     const params = locationType || state
       ? `?locationType=${encodeURIComponent(locationType || '')}&state=${encodeURIComponent(state || '')}`
       : '';
-    return await fetchAPI(`/api/intelligence/rules${params}`);
+    const response = await fetchAPI(`/api/intelligence/rules${params}`);
+    return response.data || [];
   },
 
   getGlobalGraph: async () => {
-    return await fetchAPI('/api/intelligence/graph');
+    const response = await fetchAPI('/api/intelligence/graph');
+    return response.data;
   },
 
   getLocationGraph: async (locationId, orgId) => {
@@ -256,7 +274,8 @@ export const notifications = {
     const params = new URLSearchParams({ page: String(page), limit: String(limit) });
     if (status) params.append('status', status);
     if (type) params.append('type', type);
-    return await fetchAPI(`/api/notifications?${params}`);
+    const response = await fetchAPI(`/api/notifications?${params}`);
+    return response.data || {};
   },
 
   getUnreadCount: async () => {
@@ -325,6 +344,14 @@ export const auditLinks = {
   },
 };
 
+export const computeSHA256 = async (textOrBuffer) => {
+  const enc = new TextEncoder();
+  const data = typeof textOrBuffer === "string" ? enc.encode(textOrBuffer) : textOrBuffer;
+  const hashBuffer = await crypto.subtle.digest("SHA-256", data);
+  const hashArray = Array.from(new Uint8Array(hashBuffer));
+  return hashArray.map(b => b.toString(16).padStart(2, "0")).join("");
+};
+
 // ============================================================
 // Main api object - exported for components
 // Must maintain compatible interface with existing component code
@@ -337,7 +364,7 @@ export const api = {
   // --- Organizations ---
   getOrganizations: async () => {
     const data = await tenancy.getOrganization();
-    return data.organizations || [data];
+    return data ? [data] : [];
   },
 
   getUsers: async () => {
@@ -356,31 +383,35 @@ export const api = {
   // --- Locations ---
   getLocations: async () => {
     const data = await tenancy.getLocations();
-    return data.locations || [];
+    return Array.isArray(data) ? data : [];
   },
 
   saveLocations: () => {},
 
   addLocation: async (loc) => {
-    const newLoc = { ...loc, id: `loc-${Date.now()}`, current_compliance_score: 100.0 };
-    const result = await tenancy.createLocation(newLoc);
+    const result = await tenancy.createLocation(loc);
     return result;
+  },
+
+  updateLocation: async (locationId, locationData) => {
+    const result = await tenancy.updateLocation(locationId, locationData);
+    return result.data;
   },
 
   // --- License Types & Dependencies ---
   getLicenseTypes: async () => {
     const data = await intelligence.getLicenseTypes();
-    return data;
+    return Array.isArray(data) ? data : [];
   },
 
   getDependencies: async () => {
     const data = await intelligence.getDependencies();
-    return data;
+    return Array.isArray(data) ? data : [];
   },
 
   getRequiredRules: async () => {
     const data = await intelligence.getRequiredRules();
-    return data;
+    return Array.isArray(data) ? data : [];
   },
 
   // --- Documents ---
@@ -446,11 +477,5 @@ export const api = {
   savePreferences: () => {},
 
   // --- Utility ---
-  computeSHA256: async (textOrBuffer) => {
-    const enc = new TextEncoder();
-    const data = typeof textOrBuffer === "string" ? enc.encode(textOrBuffer) : textOrBuffer;
-    const hashBuffer = await crypto.subtle.digest("SHA-256", data);
-    const hashArray = Array.from(new Uint8Array(hashBuffer));
-    return hashArray.map(b => b.toString(16).padStart(2, "0")).join("");
-  },
+  computeSHA256,
 };
