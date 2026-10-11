@@ -25,20 +25,40 @@ export default function ComplianceScore() {
   const [scoreResult, setScoreResult] = useState(null);
 
   useEffect(() => {
-    const locs = api.getLocations().filter(l => canAccessLocation(l.id));
-    setLocations(locs);
-    if (locs.length > 0) {
-      setSelectedLocationId(locs[0].id);
-    }
-    setDependencies(api.getDependencies());
-    setLicenseTypes(api.getLicenseTypes());
-    setDocuments(api.getDocuments());
+    (async () => {
+      try {
+        const [nextLocations, nextDependencies, nextLicenseTypes, nextDocuments] = await Promise.all([
+          api.getLocations(),
+          api.getDependencies(),
+          api.getLicenseTypes(),
+          api.getDocuments(),
+        ]);
+        const locs = (Array.isArray(nextLocations) ? nextLocations : []).filter(l => canAccessLocation(l.id));
+        setLocations(locs);
+        if (locs.length > 0) {
+          setSelectedLocationId(locs[0].id);
+        }
+        setDependencies(Array.isArray(nextDependencies) ? nextDependencies : []);
+        setLicenseTypes(Array.isArray(nextLicenseTypes) ? nextLicenseTypes : []);
+        setDocuments(Array.isArray(nextDocuments) ? nextDocuments : []);
+      } catch (error) {
+        console.error("Compliance data loading failed", error);
+        setLocations([]);
+        setDependencies([]);
+        setLicenseTypes([]);
+        setDocuments([]);
+      }
+    })();
   }, []);
 
   useEffect(() => {
     if (selectedLocationId) {
-      const res = api.calculateLocationScore(selectedLocationId);
-      setScoreResult(res);
+      api.calculateLocationScore(selectedLocationId)
+        .then(setScoreResult)
+        .catch((error) => {
+          console.error("Compliance score loading failed", error);
+          setScoreResult(null);
+        });
     }
   }, [selectedLocationId]);
 
