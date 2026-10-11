@@ -25,6 +25,10 @@ export default function Layout() {
   const [showRoleMenu, setShowRoleMenu] = useState(false);
   const [showOrgMenu, setShowOrgMenu] = useState(false);
 
+  if (!user || !currentOrg) {
+    return <div className="flex h-screen items-center justify-center bg-slate-50 text-sm text-slate-500">Loading workspace...</div>;
+  }
+
   const navItems = [
     { name: "Dashboard", path: "/dashboard", icon: LayoutDashboard },
     { name: "Locations", path: "/locations", icon: MapPin },
