@@ -1,5 +1,5 @@
 import React, { createContext, useContext, useState, useEffect } from "react";
-import { api } from "../services/api";
+import { api, auth } from "../services/api";
 
 const AuthContext = createContext();
 
@@ -10,39 +10,34 @@ export const AuthProvider = ({ children }) => {
   const [currentOrg, setCurrentOrg] = useState(null);
   const [loading, setLoading] = useState(true);
 
+  const applyProfile = async (profile) => {
+    const hydratedUser = {
+      ...profile.user,
+      org_id: profile.organization?.id,
+      assignedLocations: (profile.accessibleLocations || []).map((location) => location.id),
+    };
+    setUser(hydratedUser);
+    setOrganizations(profile.organization ? [profile.organization] : []);
+    const users = await api.getUsers();
+    setAllUsers(users.length > 0 ? users : [hydratedUser]);
+  };
+
   // Initialize data from API async after mount
   useEffect(() => {
     ;(async () => {
+      if (!localStorage.getItem('sclip_auth_token')) {
+        setLoading(false);
+        return;
+      }
+
       try {
-        const user = await api.getCurrentUser();
-        const allUsers = await api.getUsers();
-        const organizations = await api.getOrganizations();
-        setUser(user);
-        setAllUsers(allUsers);
-        setOrganizations(organizations);
-      } catch (e) {
-        // Fallback to mock data on failure
-        setUser({
-          id: 'user-1',
-          email: 'anantha@apexretail.in',
-          name: 'Anantha Krishna',
-          role: 'ORG_ADMIN',
-          org_id: 'org-1',
-          assignedLocations: ['loc-1', 'loc-2', 'loc-3', 'loc-4'],
-        });
-        setAllUsers([{
-          id: 'user-1',
-          org_id: 'org-1',
-          name: 'Anantha Krishna',
-          email: 'anantha@apexretail.in',
-          role: 'ORG_ADMIN',
-          assignedLocations: ['loc-1', 'loc-2', 'loc-3', 'loc-4'],
-        }]);
-        setOrganizations([{
-          id: 'org-1',
-          name: 'Apex Retail Group India Ltd.',
-          tax_id: '29AABCA1234F1Z8',
-        }]);
+        const response = await auth.getCurrentUser();
+        await applyProfile(response.data);
+      } catch (error) {
+        auth.logout();
+        setUser(null);
+        setAllUsers([]);
+        setOrganizations([]);
       } finally {
         setLoading(false);
       }
@@ -55,6 +50,12 @@ export const AuthProvider = ({ children }) => {
       setCurrentOrg(org);
     }
   }, [user, organizations]);
+
+  const login = async (email, password) => {
+    const response = await auth.login(email, password);
+    await applyProfile(response.data);
+    return response;
+  };
 
   const switchUser = (userId) => {
     api.setCurrentUser(userId);
@@ -90,6 +91,7 @@ export const AuthProvider = ({ children }) => {
     organizations: organizations || [],
     currentOrg,
     loading,
+    login,
     switchUser,
     switchOrg,
     isOrgAdmin,
