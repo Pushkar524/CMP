@@ -27,11 +27,13 @@ class StorageService {
     } else {
       this.bucket = config.storage.s3.bucket;
       this.client = new S3Client({
+        endpoint: config.storage.s3.endpoint,
         region: config.storage.s3.region,
         credentials: {
           accessKeyId: config.storage.s3.accessKeyId,
           secretAccessKey: config.storage.s3.secretAccessKey,
         },
+        forcePathStyle: true,
       });
     }
   }
