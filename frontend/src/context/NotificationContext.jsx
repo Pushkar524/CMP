@@ -18,6 +18,11 @@ export const NotificationProvider = ({ children }) => {
   // Initialize data from API async after mount
   useEffect(() => {
     ;(async () => {
+      if (!localStorage.getItem('sclip_auth_token')) {
+        setLoading(false);
+        return;
+      }
+
       try {
         const notifs = await api.getNotifications();
         setNotifications(notifs || []);
