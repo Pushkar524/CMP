@@ -1,14 +1,10 @@
 import React from "react";
 
-export default function TrendChart({ locationName = "Overall Footprint" }) {
-  const points = [
-    { month: "May", score: 94 },
-    { month: "Jun", score: 91 },
-    { month: "Jul", score: 85 },
-    { month: "Aug", score: 76 },
-    { month: "Sep", score: 88 },
-    { month: "Oct (Live)", score: 87.5 },
-  ];
+export default function TrendChart({ locationName = "Overall Footprint", history = [] }) {
+  const points = history.map((entry) => ({
+    month: new Date(entry.calculated_at).toLocaleDateString(undefined, { month: "short", day: "numeric" }),
+    score: entry.score,
+  }));
 
   const width = 600;
   const height = 180;
@@ -17,7 +13,7 @@ export default function TrendChart({ locationName = "Overall Footprint" }) {
   const minScore = 50;
   const maxScore = 100;
 
-  const getX = (idx) => padding + (idx / (points.length - 1)) * (width - 2 * padding);
+  const getX = (idx) => padding + (idx / Math.max(points.length - 1, 1)) * (width - 2 * padding);
   const getY = (score) => height - padding - ((score - minScore) / (maxScore - minScore)) * (height - 2 * padding);
 
   const pathData = points
@@ -41,6 +37,11 @@ export default function TrendChart({ locationName = "Overall Footprint" }) {
         </div>
       </div>
 
+      {points.length === 0 ? (
+        <div className="rounded-lg border border-dashed border-gray-300 bg-gray-50 p-8 text-center text-xs text-gray-500">
+          No compliance snapshots yet. Your trend will appear after the first score calculation.
+        </div>
+      ) : (
       <div className="relative overflow-x-auto">
         <svg viewBox={`0 0 ${width} ${height}`} className="w-full h-44 overflow-visible">
           {/* Grid lines */}
@@ -106,6 +107,7 @@ export default function TrendChart({ locationName = "Overall Footprint" }) {
           ))}
         </svg>
       </div>
+      )}
     </div>
   );
 }

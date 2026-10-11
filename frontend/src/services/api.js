@@ -175,6 +175,12 @@ export const compliance = {
   },
 
   getLocationHistory: async (locationId, limit) => {
+    const params = limit ? `?limit=${limit}` : '';
+    const response = await fetchAPI(`/api/compliance/locations/${locationId}/history${params}`);
+    return response.data;
+  },
+
+  getLocationHistory: async (locationId, limit) => {
     const params = limit !== undefined ? `?limit=${limit}` : '';
     const response = await fetchAPI(`/api/compliance/locations/${locationId}/history${params}`);
     return response.data || [];

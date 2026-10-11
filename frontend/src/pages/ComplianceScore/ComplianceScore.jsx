@@ -23,6 +23,7 @@ export default function ComplianceScore() {
   const [licenseTypes, setLicenseTypes] = useState([]);
   const [documents, setDocuments] = useState([]);
   const [scoreResult, setScoreResult] = useState(null);
+  const [scoreHistory, setScoreHistory] = useState([]);
 
   useEffect(() => {
     (async () => {
@@ -53,11 +54,16 @@ export default function ComplianceScore() {
 
   useEffect(() => {
     if (selectedLocationId) {
-      api.calculateLocationScore(selectedLocationId)
-        .then(setScoreResult)
-        .catch((error) => {
+      Promise.all([
+        api.calculateLocationScore(selectedLocationId),
+        api.getLocationHistory(selectedLocationId),
+      ]).then(([nextScore, nextHistory]) => {
+        setScoreResult(nextScore);
+        setScoreHistory(Array.isArray(nextHistory?.history) ? nextHistory.history : []);
+      }).catch((error) => {
           console.error("Compliance score loading failed", error);
           setScoreResult(null);
+          setScoreHistory([]);
         });
     }
   }, [selectedLocationId]);
@@ -233,7 +239,7 @@ export default function ComplianceScore() {
       />
 
       {/* Historical Trend Chart */}
-      <TrendChart locationName={selectedLoc?.name} />
+      <TrendChart locationName={selectedLoc?.name} history={scoreHistory} />
     </div>
   );
 }
