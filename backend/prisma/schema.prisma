@@ -57,11 +57,18 @@ model Location {
   id                       String   @id @default(uuid())
   org_id                   String
   name                     String
-  code                     String
-  type                     String   // e.g. "STORE", "WAREHOUSE", "OFFICE", "FACTORY"
-  state                    String   // e.g. "Karnataka", "Maharashtra"
+  code                     String?
+  type                     String?  // e.g. "STORE", "WAREHOUSE", "OFFICE", "FACTORY"
+  state                    String?  // e.g. "Karnataka", "Maharashtra"
   address                  String?
-  current_compliance_score Float    @default(100.0)
+  city                     String?
+  pincode                  String?
+  phone                    String?
+  gstin                    String?
+  employee_count           Int?
+  operating_hours          String?
+  profile_completed        Boolean  @default(false)
+  current_compliance_score Float    @default(0.0)
   created_at               DateTime @default(now())
   updated_at               DateTime @updatedAt
 
