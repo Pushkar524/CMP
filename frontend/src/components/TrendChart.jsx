@@ -52,7 +52,7 @@ export default function TrendChart({ locationName = "Overall Footprint", history
                 y1={getY(val)}
                 x2={width - padding}
                 y2={getY(val)}
-                stroke="#f3f4f6"
+                stroke="#e4e7ec"
                 strokeDasharray="4 4"
               />
               <text x={padding - 8} y={getY(val) + 4} textAnchor="end" fontSize="10" fill="#9ca3af">
@@ -64,13 +64,13 @@ export default function TrendChart({ locationName = "Overall Footprint", history
           {/* Area gradient */}
           <defs>
             <linearGradient id="scoreGrad" x1="0" y1="0" x2="0" y2="1">
-              <stop offset="0%" stopColor="#6366f1" stopOpacity="0.25" />
-              <stop offset="100%" stopColor="#6366f1" stopOpacity="0.0" />
+              <stop offset="0%" stopColor="#2457c5" stopOpacity="0.22" />
+              <stop offset="100%" stopColor="#2457c5" stopOpacity="0.0" />
             </linearGradient>
           </defs>
 
           <path d={areaData} fill="url(#scoreGrad)" />
-          <path d={pathData} fill="none" stroke="#6366f1" strokeWidth="3" strokeLinecap="round" />
+          <path d={pathData} fill="none" stroke="#2457c5" strokeWidth="3" strokeLinecap="round" />
 
           {/* Data Points */}
           {points.map((p, i) => (
@@ -80,7 +80,7 @@ export default function TrendChart({ locationName = "Overall Footprint", history
                 cy={getY(p.score)}
                 r="5"
                 fill="#ffffff"
-                stroke="#4f46e5"
+                stroke="#2457c5"
                 strokeWidth="2.5"
                 className="transition-transform group-hover:scale-125"
               />

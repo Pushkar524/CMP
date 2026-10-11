@@ -38,15 +38,15 @@ export default function Layout() {
   ];
 
   return (
-    <div className="flex h-screen bg-slate-50 text-slate-900 font-sans antialiased overflow-hidden">
+    <div className="app-shell flex h-screen bg-slate-50 text-slate-900 font-sans antialiased overflow-hidden">
       {/* Sidebar */}
-      <aside className="w-64 bg-slate-900 text-slate-300 flex flex-col shrink-0 border-r border-slate-800">
+      <aside className="app-sidebar w-64 bg-slate-900 text-slate-300 flex flex-col shrink-0 border-r border-slate-800">
         {/* Brand */}
-        <div className="h-16 flex items-center px-6 border-b border-slate-800/80 gap-3">
+        <div className="sidebar-brand h-16 flex items-center px-6 border-b border-slate-800/80 gap-3">
           <div className="w-8 h-8 rounded-lg bg-indigo-600 flex items-center justify-center font-black text-white text-base shadow-md">
             S
           </div>
-          <div>
+          <div className="sidebar-brand-copy">
             <span className="font-extrabold text-white text-base tracking-tight">SCLIP</span>
             <span className="text-[10px] text-indigo-400 block -mt-1 font-semibold uppercase tracking-wider">
               Compliance Cloud
@@ -55,7 +55,7 @@ export default function Layout() {
         </div>
 
         {/* Tenant Org Selector */}
-        <div className="p-4 border-b border-slate-800">
+        <div className="sidebar-tenant p-4 border-b border-slate-800">
           <label className="text-[10px] font-bold text-slate-400 uppercase tracking-wider block mb-1">
             Active Tenant
           </label>
@@ -94,7 +94,7 @@ export default function Layout() {
         </div>
 
         {/* Nav Links */}
-        <nav className="p-3 space-y-1 flex-1 overflow-y-auto">
+        <nav className="sidebar-nav p-3 space-y-1 flex-1 overflow-y-auto">
           {navItems.map((item) => {
             const Icon = item.icon;
             const isActive = location.pathname.startsWith(item.path);
@@ -116,7 +116,7 @@ export default function Layout() {
         </nav>
 
         {/* Current Active Persona / RBAC Switcher */}
-        <div className="p-4 border-t border-slate-800 bg-slate-950/40">
+        <div className="sidebar-persona p-4 border-t border-slate-800 bg-slate-950/40">
           <div className="flex items-center justify-between mb-1.5">
             <span className="text-[10px] font-bold text-slate-400 uppercase tracking-wider">
               Active Persona (RBAC)
@@ -137,7 +137,7 @@ export default function Layout() {
             >
               <div className="flex items-center gap-2 truncate">
                 <UserCheck className="w-4 h-4 text-emerald-400 shrink-0" />
-                <div className="text-left truncate">
+                <div className="sidebar-persona-copy text-left truncate">
                   <div className="font-semibold truncate">{user.name}</div>
                   <div className="text-[10px] text-slate-400 truncate">{user.email}</div>
                 </div>
@@ -171,7 +171,7 @@ export default function Layout() {
             className="mt-3 flex items-center justify-center gap-1.5 px-3 py-1.5 text-xs font-semibold text-slate-400 hover:text-slate-100 hover:bg-slate-800 rounded-lg transition-colors"
           >
             <LogOut className="w-3.5 h-3.5" />
-            Sign Out
+            <span className="sidebar-signout-label">Sign Out</span>
           </Link>
         </div>
       </aside>
@@ -179,13 +179,13 @@ export default function Layout() {
       {/* Main Workspace */}
       <div className="flex-1 flex flex-col overflow-hidden">
         {/* Top Header */}
-        <header className="h-16 bg-white border-b border-gray-200/80 flex items-center justify-between px-8 shadow-2xs shrink-0 z-10">
+        <header className="app-header h-16 bg-white border-b border-gray-200/80 flex items-center justify-between px-8 shadow-2xs shrink-0 z-10">
           <div className="flex items-center gap-3">
             <h1 className="text-base font-bold text-gray-900">
               {navItems.find((i) => location.pathname.startsWith(i.path))?.name || "Dashboard"}
             </h1>
             <span className="text-xs text-gray-400">|</span>
-            <span className="text-xs font-medium text-gray-500">
+            <span className="app-header-scope text-xs font-medium text-gray-500">
               Scope: {isOrgAdmin ? "All Locations (Org Admin)" : `Assigned Stores (${user.assignedLocations?.length || 0})`}
             </span>
           </div>
@@ -210,7 +210,7 @@ export default function Layout() {
               to="/audit/audit-blr-bbmp-2026"
               target="_blank"
               rel="noreferrer"
-              className="flex items-center gap-1.5 px-3 py-1.5 bg-indigo-50 hover:bg-indigo-100 text-indigo-700 text-xs font-bold rounded-lg border border-indigo-200 transition-colors"
+              className="app-header-inspector flex items-center gap-1.5 px-3 py-1.5 bg-indigo-50 hover:bg-indigo-100 text-indigo-700 text-xs font-bold rounded-lg border border-indigo-200 transition-colors"
             >
               <ExternalLink className="w-3.5 h-3.5" />
               Test Inspector Portal
@@ -219,7 +219,7 @@ export default function Layout() {
         </header>
 
         {/* Page Content Body */}
-        <main className="flex-1 overflow-y-auto p-8 bg-slate-50/70">
+        <main className="app-content flex-1 overflow-y-auto bg-slate-50/70">
           <Outlet />
         </main>
       </div>

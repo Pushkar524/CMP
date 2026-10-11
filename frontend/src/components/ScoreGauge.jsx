@@ -6,17 +6,17 @@ export default function ScoreGauge({ score = 100, size = 120, strokeWidth = 10, 
   const normalizedScore = Math.max(0, Math.min(100, score));
   const offset = circumference - (normalizedScore / 100) * circumference;
 
-  let color = "#10b981"; // green
-  let bgColor = "#d1fae5";
+  let color = "#0f766e";
+  let bgColor = "#e8f6f3";
   let labelText = "Compliant";
 
   if (normalizedScore < 70) {
-    color = "#ef4444"; // red
-    bgColor = "#fee2e2";
+    color = "#c24145";
+    bgColor = "#fcebec";
     labelText = "Critical Risk";
   } else if (normalizedScore < 90) {
-    color = "#f59e0b"; // yellow
-    bgColor = "#fef3c7";
+    color = "#b7791f";
+    bgColor = "#fff7df";
     labelText = "Moderate Risk";
   }
 
@@ -28,7 +28,7 @@ export default function ScoreGauge({ score = 100, size = 120, strokeWidth = 10, 
             cx={size / 2}
             cy={size / 2}
             r={radius}
-            stroke="#e5e7eb"
+            stroke="#e4e7ec"
             strokeWidth={strokeWidth}
             fill="transparent"
           />

@@ -1,11 +1,258 @@
+@import url('https://fonts.googleapis.com/css2?family=DM+Sans:wght@400;500;600;700&family=Space+Grotesk:wght@500;600;700&display=swap');
 @import "tailwindcss";
+
+:root {
+  --ink: #172033;
+  --muted: #667085;
+  --subtle: #98a2b3;
+  --canvas: #f6f8fb;
+  --surface: #ffffff;
+  --line: #e4e7ec;
+  --line-strong: #d0d5dd;
+  --primary: #2457c5;
+  --primary-dark: #17439e;
+  --primary-soft: #edf3ff;
+  --secondary: #0f766e;
+  --secondary-soft: #e8f6f3;
+  --danger: #c24145;
+  --warning: #b7791f;
+  font-family: "DM Sans", ui-sans-serif, system-ui, sans-serif;
+  color: var(--ink);
+  background: var(--canvas);
+  font-synthesis: none;
+  text-rendering: optimizeLegibility;
+}
+
+* {
+  box-sizing: border-box;
+}
 
 body {
   margin: 0;
-  font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', 'Roboto', 'Oxygen',
-    'Ubuntu', 'Cantarell', 'Fira Sans', 'Droid Sans', 'Helvetica Neue',
-    sans-serif;
+  min-width: 320px;
+  background: var(--canvas);
+  color: var(--ink);
+  font-family: "DM Sans", ui-sans-serif, system-ui, sans-serif;
   -webkit-font-smoothing: antialiased;
   -moz-osx-font-smoothing: grayscale;
-  background-color: #f3f4f6;
+}
+
+button,
+input,
+select,
+textarea {
+  font: inherit;
+}
+
+button,
+a,
+select {
+  -webkit-tap-highlight-color: transparent;
+}
+
+h1,
+h2,
+h3,
+h4,
+h5,
+h6 {
+  font-family: "Space Grotesk", "DM Sans", ui-sans-serif, system-ui, sans-serif;
+  letter-spacing: -0.02em;
+}
+
+::selection {
+  background: #cfe0ff;
+  color: var(--ink);
+}
+
+/* Shared visual language for existing utility-based screens. */
+.bg-slate-50,
+.bg-slate-50\/70,
+.bg-slate-100,
+.bg-gray-50 {
+  background-color: var(--canvas) !important;
+}
+
+.bg-white {
+  background-color: var(--surface) !important;
+}
+
+.bg-slate-900,
+.bg-slate-950 {
+  background-color: #172033 !important;
+}
+
+.text-gray-900,
+.text-slate-900,
+.text-slate-800,
+.text-gray-800 {
+  color: var(--ink) !important;
+}
+
+.text-gray-700,
+.text-slate-700,
+.text-gray-600,
+.text-slate-600,
+.text-gray-500,
+.text-slate-500,
+.text-gray-400,
+.text-slate-400 {
+  color: var(--muted) !important;
+}
+
+.text-indigo-600,
+.text-indigo-700,
+.text-indigo-800 {
+  color: var(--primary) !important;
+}
+
+.text-emerald-600,
+.text-emerald-700,
+.text-emerald-800 {
+  color: var(--secondary) !important;
+}
+
+.bg-indigo-600 {
+  background-color: var(--primary) !important;
+}
+
+.bg-indigo-600:hover,
+.hover\:bg-indigo-700:hover {
+  background-color: var(--primary-dark) !important;
+}
+
+.bg-indigo-50,
+.bg-indigo-50\/40 {
+  background-color: var(--primary-soft) !important;
+}
+
+.bg-emerald-50,
+.bg-emerald-100 {
+  background-color: var(--secondary-soft) !important;
+}
+
+.text-white {
+  color: #fff !important;
+}
+
+[class*="border-gray-"],
+[class*="border-slate-"] {
+  border-color: var(--line) !important;
+}
+
+.rounded-xl,
+.rounded-2xl,
+.rounded-3xl {
+  border-radius: 14px;
+}
+
+.shadow-xs,
+.shadow-2xs,
+.shadow-sm {
+  box-shadow: 0 1px 2px rgb(16 24 40 / 0.04), 0 8px 24px rgb(16 24 40 / 0.04);
+}
+
+input,
+select,
+textarea {
+  color: var(--ink);
+  background-color: var(--surface);
+  border-color: var(--line-strong) !important;
+}
+
+input::placeholder,
+textarea::placeholder {
+  color: var(--subtle);
+}
+
+input:focus,
+select:focus,
+textarea:focus {
+  border-color: var(--primary) !important;
+  box-shadow: 0 0 0 3px rgb(36 87 197 / 0.14);
+  outline: none;
+}
+
+button:focus-visible,
+a:focus-visible,
+select:focus-visible,
+input:focus-visible {
+  outline: 3px solid rgb(36 87 197 / 0.32);
+  outline-offset: 2px;
+}
+
+/* Responsive workspace shell. */
+.app-content {
+  padding: 32px;
+}
+
+@media (max-width: 1024px) {
+  .app-sidebar {
+    width: 220px !important;
+  }
+
+  .app-content {
+    padding: 24px;
+  }
+}
+
+@media (max-width: 720px) {
+  .app-sidebar {
+    width: 68px !important;
+  }
+
+  .app-sidebar .sidebar-brand-copy,
+  .app-sidebar .sidebar-tenant,
+  .app-sidebar .sidebar-persona-copy,
+  .app-sidebar .sidebar-signout-label {
+    display: none;
+  }
+
+  .app-sidebar .sidebar-brand {
+    justify-content: center;
+    padding-inline: 0;
+  }
+
+  .app-sidebar .sidebar-nav {
+    padding-inline: 10px;
+  }
+
+  .app-sidebar .sidebar-nav a {
+    justify-content: center;
+    padding-inline: 10px;
+  }
+
+  .app-sidebar .sidebar-nav a svg {
+    margin-right: 0;
+  }
+
+  .app-sidebar .sidebar-persona {
+    padding-inline: 10px;
+  }
+
+  .app-sidebar .sidebar-persona > div:first-child,
+  .app-sidebar .sidebar-persona button > svg:last-child {
+    display: none;
+  }
+
+  .app-sidebar .sidebar-persona button {
+    justify-content: center;
+  }
+
+  .app-sidebar .sidebar-signout {
+    padding-inline: 8px;
+  }
+
+  .app-header {
+    padding-inline: 16px !important;
+  }
+
+  .app-header-scope,
+  .app-header-inspector {
+    display: none;
+  }
+
+  .app-content {
+    padding: 20px 16px;
+  }
 }
