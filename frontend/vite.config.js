@@ -16,8 +16,4 @@ export default defineConfig({
       },
     },
   },
-  define: {
-    // Expose VITE_ env vars to the app
-    'process.env.REACT_APP_API_BASE': JSON.stringify(''),
-  },
 });
