@@ -25,7 +25,7 @@ app.get('/health', (req, res) => {
   res.status(200).json({
     status: 'UP',
     timestamp: new Date().toISOString(),
-    service: 'SCLIP Core API',
+    service: 'Compliance Management Platform API',
   });
 });
 

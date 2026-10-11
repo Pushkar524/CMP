@@ -1,6 +1,6 @@
-# SCLIP — Secure Compliance & License Intelligence Platform
+# Compliance Management Platform
 
-SCLIP is a multi-tenant compliance management application for organizations that
+This is a multi-tenant compliance management application for organizations that
 need to manage regulatory documents across multiple locations. The current
 implementation includes a React frontend, an Express API, PostgreSQL persistence
 through Prisma, document storage through an S3-compatible service, and a
@@ -64,7 +64,7 @@ Management, Shivamogga (VTU, Belagavi)
 - Reusable forms, modals, score gauges, dependency graphs, trend charts, and
   notification controls.
 - Updated visual design across the frontend with:
-  - Space Grotesk headings and DM Sans body text.
+  - DM Sans used consistently for headings, body text, and controls.
   - Neutral surfaces with navy, blue, and teal accents.
   - Consistent cards, controls, borders, shadows, and focus states.
   - Responsive desktop, tablet, and mobile layout behavior.

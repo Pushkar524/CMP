@@ -13,6 +13,7 @@ export default function UploadDocumentModal({ isOpen, onClose, onUpload, locatio
   const [isLifetimeValid, setIsLifetimeValid] = useState(false);
   const [shaHash, setShaHash] = useState("");
   const [isHashing, setIsHashing] = useState(false);
+  const [error, setError] = useState("");
 
   if (!isOpen) return null;
 
@@ -34,20 +35,25 @@ export default function UploadDocumentModal({ isOpen, onClose, onUpload, locatio
     }
   };
 
-  const handleSubmit = (e) => {
+  const handleSubmit = async (e) => {
     e.preventDefault();
+    setError("");
     const lt = licenseTypes.find(t => t.id === licenseTypeId);
-    onUpload({
-      license_type_id: licenseTypeId,
-      license_code: lt?.code || "CUSTOM",
-      license_name: lt?.name || "Regulatory License",
-      location_id: isOrgWide ? null : locationId,
-      file_name: fileName || "document.pdf",
-      issue_date: issueDate || new Date().toISOString().split("T")[0],
-      expiry_date: isLifetimeValid ? null : expiryDate,
-      is_lifetime_valid: isLifetimeValid
-    }, file);
-    onClose();
+    try {
+      await onUpload({
+        license_type_id: licenseTypeId,
+        license_code: lt?.code || "CUSTOM",
+        license_name: lt?.name || "Regulatory License",
+        location_id: isOrgWide ? null : locationId,
+        file_name: fileName || "document.pdf",
+        issue_date: issueDate || new Date().toISOString().split("T")[0],
+        expiry_date: isLifetimeValid ? null : expiryDate,
+        is_lifetime_valid: isLifetimeValid
+      }, file);
+      onClose();
+    } catch (uploadError) {
+      setError(uploadError.message || "Document upload failed. Please try again.");
+    }
   };
 
   return (
@@ -69,6 +75,11 @@ export default function UploadDocumentModal({ isOpen, onClose, onUpload, locatio
         </div>
 
         <form onSubmit={handleSubmit} className="mt-5 space-y-4">
+          {error && (
+            <div className="rounded-lg border border-red-200 bg-red-50 px-3 py-2 text-xs text-red-700">
+              {error}
+            </div>
+          )}
           {/* File Picker */}
           <div>
             <label className="block text-xs font-bold text-gray-700 uppercase tracking-wider mb-1.5">

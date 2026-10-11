@@ -1,7 +1,7 @@
 {
-  "name": "sclip-backend",
+  "name": "compliance-platform-backend",
   "version": "1.0.0",
-  "description": "SCLIP - Secure Compliance & License Intelligence Platform Backend",
+  "description": "Compliance Management Platform backend",
   "main": "src/server.js",
   "type": "commonjs",
   "scripts": {

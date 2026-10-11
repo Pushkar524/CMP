@@ -18,8 +18,12 @@ export const AuthProvider = ({ children }) => {
     };
     setUser(hydratedUser);
     setOrganizations(profile.organization ? [profile.organization] : []);
-    const users = await api.getUsers();
-    setAllUsers(users.length > 0 ? users : [hydratedUser]);
+    if (hydratedUser.role === "ORG_ADMIN") {
+      const users = await api.getUsers();
+      setAllUsers(users.length > 0 ? users : [hydratedUser]);
+    } else {
+      setAllUsers([hydratedUser]);
+    }
   };
 
   // Initialize data from API async after mount

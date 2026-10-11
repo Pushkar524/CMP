@@ -3,7 +3,7 @@ const config = require('./src/config/env');
 
 async function runTest() {
   console.log('====================================================');
-  console.log('📧 SCLIP Real-Time Email Service Verification');
+  console.log('📧 Real-Time Email Service Verification');
   console.log('====================================================');
   console.log(`Provider:       ${config.email.provider}`);
   console.log(`Resend API Key: ${config.email.resendApiKey ? config.email.resendApiKey.slice(0, 6) + '...' + config.email.resendApiKey.slice(-4) : 'Not configured'}`);

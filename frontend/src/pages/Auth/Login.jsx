@@ -33,7 +33,7 @@ export default function Login() {
         <div className="w-12 h-12 bg-indigo-600 rounded-2xl flex items-center justify-center mx-auto shadow-xl">
           <Shield className="w-6 h-6 text-white" />
         </div>
-        <h2 className="mt-4 text-2xl font-black text-white tracking-tight">SCLIP Compliance Cloud</h2>
+        <h2 className="mt-4 text-2xl font-black text-white tracking-tight">Compliance Management Platform</h2>
         <p className="mt-1 text-xs text-slate-400">
           Cloud-based, multi-tenant license & compliance management system
         </p>
@@ -80,7 +80,7 @@ export default function Login() {
 
           {/* Register CTA */}
           <div className="mt-5 pt-5 border-t border-gray-100 text-center">
-            <p className="text-xs text-gray-500 mb-2.5">New to SCLIP? Set up your compliance workspace.</p>
+            <p className="text-xs text-gray-500 mb-2.5">Set up your compliance workspace.</p>
             <Link
               to="/register"
               className="w-full inline-flex items-center justify-center gap-1.5 py-2.5 px-4 border-2 border-indigo-200 hover:border-indigo-400 hover:bg-indigo-50 text-indigo-700 text-xs font-bold rounded-xl transition-all"

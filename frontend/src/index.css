@@ -1,4 +1,4 @@
-@import url('https://fonts.googleapis.com/css2?family=DM+Sans:wght@400;500;600;700&family=Space+Grotesk:wght@500;600;700&display=swap');
+@import url('https://fonts.googleapis.com/css2?family=DM+Sans:wght@400;500;600;700&display=swap');
 @import "tailwindcss";
 
 :root {
@@ -37,6 +37,10 @@ body {
   -moz-osx-font-smoothing: grayscale;
 }
 
+.font-sans {
+  font-family: "DM Sans", ui-sans-serif, system-ui, sans-serif !important;
+}
+
 button,
 input,
 select,
@@ -56,7 +60,7 @@ h3,
 h4,
 h5,
 h6 {
-  font-family: "Space Grotesk", "DM Sans", ui-sans-serif, system-ui, sans-serif;
+  font-family: inherit;
   letter-spacing: -0.02em;
 }
 

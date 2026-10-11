@@ -50,9 +50,10 @@ export default function Locations() {
   const filteredLocations = locations
     .filter(l => canAccessLocation(l.id))
     .filter(l => {
-      const matchSearch = l.name.toLowerCase().includes(search.toLowerCase()) ||
-        l.code.toLowerCase().includes(search.toLowerCase()) ||
-        l.state.toLowerCase().includes(search.toLowerCase());
+      const query = search.toLowerCase();
+      const matchSearch = String(l.name || "").toLowerCase().includes(query) ||
+        String(l.code || "").toLowerCase().includes(query) ||
+        String(l.state || "").toLowerCase().includes(query);
       const matchType = typeFilter === "ALL" || l.type === typeFilter;
       return matchSearch && matchType;
     });

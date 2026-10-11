@@ -3,7 +3,7 @@ const complianceScoreService = require('./src/modules/compliance/complianceScore
 
 async function testComplianceEngine() {
   console.log('====================================================');
-  console.log('🧠 SCLIP Compliance Score Engine Verification');
+  console.log('🧠 Compliance Score Engine Verification');
   console.log('====================================================\n');
 
   try {

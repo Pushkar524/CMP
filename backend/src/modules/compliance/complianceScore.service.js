@@ -21,19 +21,21 @@ class ComplianceScoreService {
     }
 
     // 1. Fetch mandatory required license types for this location type and state
-    const requiredLicenses = await prisma.requiredLicenseType.findMany({
-      where: {
-        location_type: location.type,
-        is_mandatory: true,
-        OR: [
-          { state: null },
-          { state: location.state },
-        ],
-      },
-      include: {
-        license_type: true,
-      },
-    });
+    const requiredLicenses = location.type
+      ? await prisma.requiredLicenseType.findMany({
+        where: {
+          location_type: location.type,
+          is_mandatory: true,
+          OR: [
+            { state: null },
+            ...(location.state ? [{ state: location.state }] : []),
+          ],
+        },
+        include: {
+          license_type: true,
+        },
+      })
+      : [];
 
     // 2. Fetch all current documents for this location (or org-wide documents)
     const documents = await prisma.document.findMany({

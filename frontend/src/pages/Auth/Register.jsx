@@ -95,14 +95,14 @@ export default function Register() {
   }
 
   return (
-    <div className="min-h-screen bg-slate-950 flex flex-col" style={{ fontFamily: "'Inter', sans-serif" }}>
+    <div className="min-h-screen bg-slate-950 flex flex-col">
       {/* Top Bar */}
       <div className="border-b border-slate-800 px-6 py-3 flex items-center justify-between">
         <div className="flex items-center gap-2.5">
           <div className="w-8 h-8 bg-indigo-600 rounded-xl flex items-center justify-center shadow-lg shadow-indigo-600/40">
             <Shield className="w-4 h-4 text-white" />
           </div>
-          <span className="text-white font-black text-sm tracking-tight">SCLIP Compliance Cloud</span>
+          <span className="text-white font-black text-sm tracking-tight">Compliance Management Platform</span>
         </div>
         <Link to="/login" className="text-xs text-slate-400 hover:text-white transition-colors">
           Already registered? <span className="text-indigo-400 font-semibold">Sign in →</span>

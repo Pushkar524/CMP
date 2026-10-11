@@ -13,7 +13,10 @@ class DocumentService {
     const where = { org_id: user.org_id };
 
     if (user.role === 'LOCATION_MANAGER') {
-      where.location_id = { in: user.accessibleLocationIds };
+      where.OR = [
+        { location_id: null },
+        { location_id: { in: user.accessibleLocationIds } },
+      ];
     }
 
     const docs = await prisma.document.findMany({
@@ -50,12 +53,9 @@ class DocumentService {
     const sha256Hash = crypto.createHash('sha256').update(file.buffer).digest('hex');
 
     // Upload to storage (MinIO/S3)
-    const storageKey = await storageService.uploadFile(
-      file.buffer,
-      file.originalname,
-      file.mimetype,
-      user.org_id
-    );
+    const safeFileName = file.originalname.replace(/[^a-zA-Z0-9._-]/g, '_');
+    const storageKey = `documents/${user.org_id}/${crypto.randomUUID()}-${safeFileName}`;
+    await storageService.uploadFile(file.buffer, file.mimetype, storageKey);
 
     const doc = await prisma.document.create({
       data: {
@@ -111,7 +111,7 @@ class DocumentService {
     });
     if (!doc) throw new NotFoundError('Document not found.');
 
-    const url = await storageService.getSignedUrl(doc.storage_key);
+    const url = await storageService.getSignedDownloadUrl(doc.storage_key);
     return { url, file_name: doc.file_name };
   }
 }

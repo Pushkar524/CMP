@@ -123,7 +123,7 @@ export default function AuditView() {
             S
           </div>
           <div>
-            <h1 className="font-extrabold text-gray-900 text-base">SCLIP External Inspector Portal</h1>
+            <h1 className="font-extrabold text-gray-900 text-base">External Inspector Portal</h1>
             <span className="text-[10px] text-gray-400 block -mt-0.5">Secure Dual-Custody Cloud Data Room</span>
           </div>
         </div>

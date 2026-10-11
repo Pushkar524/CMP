@@ -41,7 +41,7 @@ export default function VerifyDocumentModal({ isOpen, onClose, document, onVerif
           <div className="bg-gray-50 rounded-xl p-4 border border-gray-200/80 space-y-2.5 text-xs text-gray-600">
             <div className="flex justify-between">
               <span className="font-semibold text-gray-500">License:</span>
-              <span className="font-bold text-gray-900">{document.license_name}</span>
+              <span className="font-bold text-gray-900">{document.license_type?.name || "Compliance document"}</span>
             </div>
             <div className="flex justify-between">
               <span className="font-semibold text-gray-500">File Name:</span>
@@ -49,7 +49,7 @@ export default function VerifyDocumentModal({ isOpen, onClose, document, onVerif
             </div>
             <div className="flex justify-between">
               <span className="font-semibold text-gray-500">Uploaded By:</span>
-              <span className="font-medium text-gray-800">{document.uploaded_by_name || "Manager"}</span>
+              <span className="font-medium text-gray-800">{document.uploaded_by?.name || "Manager"}</span>
             </div>
             <div className="flex justify-between">
               <span className="font-semibold text-gray-500">Expiry Date:</span>

@@ -5,7 +5,7 @@ const prisma = require('./config/db');
 const PORT = config.port;
 
 const server = app.listen(PORT, async () => {
-  console.log(`🚀 SCLIP Server running in ${config.nodeEnv} mode on port ${PORT}`);
+  console.log(`🚀 Compliance Management Platform API running in ${config.nodeEnv} mode on port ${PORT}`);
 
   // Initialize storage bucket on startup
   try {
@@ -19,10 +19,10 @@ const server = app.listen(PORT, async () => {
 
 // Graceful Shutdown
 process.on('SIGINT', async () => {
-  console.log('\n[SCLIP] Shutting down gracefully...');
+  console.log('\n[Compliance Platform] Shutting down gracefully...');
   await prisma.$disconnect();
   server.close(() => {
-    console.log('[SCLIP] Server closed.');
+    console.log('[Compliance Platform] Server closed.');
     process.exit(0);
   });
 });

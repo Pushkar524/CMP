@@ -82,7 +82,7 @@ class EmailService {
         this.resendClient = new Resend(apiKey);
       }
 
-      const fromAddress = config.email.resendFrom || 'SCLIP Compliance <onboarding@resend.dev>';
+      const fromAddress = config.email.resendFrom || 'Compliance Platform <onboarding@resend.dev>';
 
       try {
         const response = await this.resendClient.emails.send({
@@ -115,7 +115,7 @@ class EmailService {
       throw new Error('Nodemailer transporter could not be initialized');
     }
 
-    const fromAddress = config.email.smtp.from || 'SCLIP <alerts@sclip.local>';
+    const fromAddress = config.email.smtp.from || 'Compliance Platform <alerts@compliance.local>';
 
     const info = await transporter.sendMail({
       from: fromAddress,
@@ -158,8 +158,8 @@ class EmailService {
               <table border="0" cellpadding="0" cellspacing="0" width="100%">
                 <tr>
                   <td>
-                    <span style="font-size: 20px; font-weight: 700; color: #ffffff; letter-spacing: -0.5px;">SCLIP</span>
-                    <span style="font-size: 13px; color: #94a3b8; margin-left: 8px;">Compliance Intelligence</span>
+                    <span style="font-size: 20px; font-weight: 700; color: #ffffff; letter-spacing: -0.5px;">Compliance Platform</span>
+                    <span style="font-size: 13px; color: #94a3b8; margin-left: 8px;">Compliance Management</span>
                   </td>
                 </tr>
               </table>
@@ -193,7 +193,7 @@ class EmailService {
           <!-- Corporate Footer -->
           <tr>
             <td style="padding: 20px 32px; background-color: #f8fafc; border-top: 1px solid #e2e8f0; font-size: 12px; color: #64748b; line-height: 1.5;">
-              <p style="margin: 0 0 4px 0;">This is an automated notification from the SCLIP Compliance Management Platform.</p>
+              <p style="margin: 0 0 4px 0;">This is an automated notification from the Compliance Management Platform.</p>
               <p style="margin: 0;">To update your notification preferences, access your user settings in the portal.</p>
             </td>
           </tr>
@@ -211,10 +211,10 @@ class EmailService {
   async sendTestEmail({ to }) {
     const html = this.wrapTemplate({
       title: 'Email Delivery Verification',
-      subtitle: 'SCLIP Notification Service is Active',
+      subtitle: 'Notification Service is Active',
       contentHtml: `
         <p>Hello,</p>
-        <p>This email confirms that your <strong>SCLIP Notification Service</strong> is properly connected and transmitting notifications in real-time.</p>
+        <p>This email confirms that your <strong>Notification Service</strong> is properly connected and transmitting notifications in real-time.</p>
         
         <table border="0" cellpadding="10" cellspacing="0" width="100%" style="background-color: #f8fafc; border: 1px solid #e2e8f0; border-radius: 6px; margin: 16px 0;">
           <tr>
@@ -230,15 +230,15 @@ class EmailService {
       `,
       actionButton: {
         text: 'Open Compliance Portal',
-        url: 'https://sclip.local/dashboard',
+        url: 'https://compliance.local/dashboard',
       },
     });
 
-    const text = `SCLIP Compliance Notification Service Verification\n\nHello,\n\nThis email confirms that your SCLIP Notification Service is properly connected and transmitting notifications in real-time.\n\nStatus: Operational\nEngine: ${this.provider.toUpperCase()}\nTimestamp: ${new Date().toUTCString()}\n\nYou will receive automated notices when licenses approach expiry or require renewal.`;
+    const text = `Compliance Notification Service Verification\n\nHello,\n\nThis email confirms that your Notification Service is properly connected and transmitting notifications in real-time.\n\nStatus: Operational\nEngine: ${this.provider.toUpperCase()}\nTimestamp: ${new Date().toUTCString()}\n\nYou will receive automated notices when licenses approach expiry or require renewal.`;
 
     return await this.sendEmail({
       to,
-      subject: 'SCLIP Notification Service Verification',
+      subject: 'Compliance Notification Service Verification',
       html,
       text,
     });
@@ -272,7 +272,7 @@ class EmailService {
       `,
       actionButton: {
         text: 'Review License Details',
-        url: 'https://sclip.local/documents',
+        url: 'https://compliance.local/documents',
       },
     });
 
@@ -317,7 +317,7 @@ class EmailService {
       `,
       actionButton: {
         text: 'Inspect Dependency Graph',
-        url: 'https://sclip.local/compliance-graph',
+        url: 'https://compliance.local/compliance-graph',
       },
     });
 

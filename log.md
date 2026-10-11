@@ -1,6 +1,6 @@
-# 📋 SCLIP — Cloud-Based Multi-Tenant Compliance & License Management System
+# 📋 Compliance Management Platform — Cloud-Based Multi-Tenant Compliance & License Management System
 
-This document tracks the complete roadmap of tasks required to implement and test **SCLIP** (*Cloud-Based Multi-Tenant Compliance & License Management System*) according to the project specifications and architecture.
+This document tracks the complete roadmap of tasks required to implement and test the **Compliance Management Platform** according to the project specifications and architecture.
 
 ---
 

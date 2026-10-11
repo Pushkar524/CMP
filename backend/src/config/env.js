@@ -38,10 +38,10 @@ const config = {
       port: parseInt(process.env.SMTP_PORT, 10) || 2525,
       user: process.env.SMTP_USER,
       pass: process.env.SMTP_PASS,
-      from: process.env.SMTP_FROM || 'SCLIP <alerts@sclip.local>',
+      from: process.env.SMTP_FROM || 'Compliance Platform <alerts@compliance.local>',
     },
     resendApiKey: process.env.RESEND_API_KEY,
-    resendFrom: process.env.RESEND_FROM || 'SCLIP Compliance <onboarding@resend.dev>',
+    resendFrom: process.env.RESEND_FROM || 'Compliance Platform <onboarding@resend.dev>',
   },
 };
 

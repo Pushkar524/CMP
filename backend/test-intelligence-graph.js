@@ -3,7 +3,7 @@ const intelligenceService = require('./src/modules/intelligence/intelligence.ser
 
 async function testIntelligenceEngine() {
   console.log('====================================================');
-  console.log('🧠 SCLIP Intelligence & Dependency Graph Verification');
+  console.log('🧠 Intelligence & Dependency Graph Verification');
   console.log('====================================================\n');
 
   try {

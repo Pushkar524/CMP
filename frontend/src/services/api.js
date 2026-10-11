@@ -1,4 +1,4 @@
-// API Service for SCLIP Frontend
+// API service for the Compliance Management Platform frontend
 // Communicates with backend via REST API calls
 // All endpoints are under /api prefix
 
@@ -458,6 +458,10 @@ export const api = {
   calculateLocationScore: async (locationId) => {
     const result = await compliance.calculateLocationScore(locationId);
     return result;
+  },
+
+  getLocationHistory: async (locationId, limit) => {
+    return await compliance.getLocationHistory(locationId, limit);
   },
 
   // --- Audit Links ---

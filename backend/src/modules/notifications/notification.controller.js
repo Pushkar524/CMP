@@ -106,7 +106,7 @@ class NotificationController {
           orgId: req.user.org_id,
           type: alertType,
           title: title || 'Test Compliance Notification',
-          message: message || 'This is a test notification generated via the SCLIP notification engine.',
+          message: message || 'This is a test notification generated via the compliance notification engine.',
           link: link || '/dashboard',
         });
       } else {

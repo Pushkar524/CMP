@@ -76,8 +76,8 @@ export default function Documents() {
     .filter((d) => d.location_id === null || canAccessLocation(d.location_id))
     .filter((d) => {
       const matchSearch =
-        d.license_name.toLowerCase().includes(search.toLowerCase()) ||
-        d.file_name.toLowerCase().includes(search.toLowerCase()) ||
+        (d.license_type?.name || "").toLowerCase().includes(search.toLowerCase()) ||
+        (d.file_name || "").toLowerCase().includes(search.toLowerCase()) ||
         (d.sha256_hash && d.sha256_hash.toLowerCase().includes(search.toLowerCase()));
 
       const matchStatus = statusFilter === "ALL" || d.status === statusFilter;
@@ -196,7 +196,7 @@ export default function Documents() {
                           <FileText className="w-4 h-4" />
                         </div>
                         <div>
-                          <div className="font-bold text-gray-900">{doc.license_name}</div>
+                          <div className="font-bold text-gray-900">{doc.license_type?.name || "Compliance document"}</div>
                           <div className="text-[11px] text-gray-400 mt-0.5">{doc.file_name}</div>
                         </div>
                       </div>

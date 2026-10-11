@@ -262,12 +262,17 @@ class IntelligenceService {
         },
         orderBy: { created_at: 'desc' },
       }),
-      prisma.requiredLicenseType.findMany({
-        where: {
-          location_type: location.type,
-          OR: [{ state: null }, { state: location.state }],
-        },
-      }),
+      location.type
+        ? prisma.requiredLicenseType.findMany({
+          where: {
+            location_type: location.type,
+            OR: [
+              { state: null },
+              ...(location.state ? [{ state: location.state }] : []),
+            ],
+          },
+        })
+        : [],
     ]);
 
     const requiredLicenseSet = new Set(requiredLicenses.map((r) => r.license_type_id));

@@ -47,9 +47,9 @@ export default function Layout() {
             S
           </div>
           <div className="sidebar-brand-copy">
-            <span className="font-extrabold text-white text-base tracking-tight">SCLIP</span>
+            <span className="font-extrabold text-white text-base tracking-tight">Compliance Management Platform</span>
             <span className="text-[10px] text-indigo-400 block -mt-1 font-semibold uppercase tracking-wider">
-              Compliance Cloud
+              Compliance workspace
             </span>
           </div>
         </div>

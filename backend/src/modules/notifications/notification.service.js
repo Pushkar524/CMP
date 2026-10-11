@@ -108,7 +108,7 @@ class NotificationService {
 
       if (user && user.email) {
         try {
-          const subject = emailSubject || `SCLIP Notice: ${title}`;
+          const subject = emailSubject || `Compliance Platform Notice: ${title}`;
           const html = emailHtml || emailService.wrapTemplate({
             title,
             subtitle: `Notification for ${user.name}`,

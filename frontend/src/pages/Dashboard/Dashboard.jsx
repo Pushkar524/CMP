@@ -146,7 +146,10 @@ export default function Dashboard() {
         </div>
 
         {/* Pending Verification */}
-        <div className="bg-white rounded-2xl border border-gray-200/90 p-5 shadow-xs flex items-center justify-between">
+        <Link
+          to="/documents"
+          className="bg-white rounded-2xl border border-gray-200/90 p-5 shadow-xs flex items-center justify-between hover:border-indigo-300 hover:shadow-sm transition-all"
+        >
           <div>
             <div className="text-[11px] font-bold text-gray-500 uppercase tracking-wider">
               Pending Approvals
@@ -159,7 +162,7 @@ export default function Dashboard() {
           <div className="p-3 bg-indigo-50 text-indigo-600 rounded-xl">
             <Activity className="w-6 h-6" />
           </div>
-        </div>
+        </Link>
 
         {/* Expired / Cascading Risks */}
         <div className="bg-white rounded-2xl border border-gray-200/90 p-5 shadow-xs flex items-center justify-between">
@@ -201,7 +204,7 @@ export default function Dashboard() {
 
           <div className="divide-y divide-gray-100">
             {visibleLocations.map((loc) => {
-              const score = loc.current_compliance_score || 100;
+              const score = loc.current_compliance_score ?? 0;
               const isHealthy = score >= 90;
               const isWarning = score >= 70 && score < 90;
 
@@ -209,7 +212,7 @@ export default function Dashboard() {
                 <div key={loc.id} className="py-4 flex items-center justify-between gap-4">
                   <div className="flex items-center gap-3.5">
                     <div className="w-10 h-10 rounded-xl bg-slate-100 flex items-center justify-center font-bold text-slate-700 shrink-0 text-sm">
-                      {loc.code.substring(0, 3)}
+                      {String(loc.code || loc.name || "LOC").substring(0, 3).toUpperCase()}
                     </div>
                     <div>
                       <div className="text-sm font-bold text-gray-900 flex items-center gap-2">
@@ -219,7 +222,7 @@ export default function Dashboard() {
                         </span>
                       </div>
                       <div className="text-xs text-gray-500 mt-0.5">
-                        {loc.state} &bull; Code: {loc.code} &bull; Lead: {loc.manager_name || "Manager"}
+                        {loc.state || "State pending"} &bull; Code: {loc.code || "Pending"} &bull; Lead: {loc.manager_name || "Manager"}
                       </div>
                     </div>
                   </div>
@@ -272,14 +275,14 @@ export default function Dashboard() {
             </Link>
           </div>
 
-          {/* SCLIP Feature Highlights from README */}
+          {/* Product feature highlights */}
           <div className="bg-gradient-to-br from-indigo-900 to-slate-900 text-white rounded-2xl p-5 shadow-xs space-y-3">
             <div className="flex items-center gap-2 text-indigo-400 font-bold text-xs uppercase tracking-wider">
               <ShieldAlert className="w-4 h-4" />
               Academic Architecture Highlights
             </div>
             <p className="text-xs text-slate-300 leading-relaxed">
-              <strong>Dynamic Scoring:</strong> Unlike a static checklist, SCLIP computes a live 0–100 score by factoring proximity to expiry, lifetime exemptions, cascading prerequisite risks, and jurisdictional gap detection.
+              <strong>Dynamic Scoring:</strong> Unlike a static checklist, the platform computes a live 0–100 score by factoring proximity to expiry, lifetime exemptions, cascading prerequisite risks, and jurisdictional gap detection.
             </p>
             <div className="pt-2 border-t border-slate-800 text-[11px] text-slate-400 flex items-center justify-between">
               <span>SHA-256 Document Integrity</span>
