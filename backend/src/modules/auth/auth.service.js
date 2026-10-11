@@ -82,12 +82,39 @@ class AuthService {
   /**
    * Registers a new organization and its initial Org Admin
    */
-  async registerOrgAdmin({ organizationName, taxId, adminName, email, password }) {
+  async registerOrgAdmin({
+    organizationName,
+    taxId,
+    adminName,
+    email,
+    password,
+    industry,
+    website,
+    phone,
+    address,
+    branches = [],
+  }) {
     if (!organizationName || !adminName || !email || !password) {
       throw new BadRequestError('Organization name, admin name, email, and password are required.');
     }
 
     const normalizedEmail = email.toLowerCase().trim();
+    const normalizedBranches = Array.isArray(branches) ? branches : [];
+    const managerEmails = normalizedBranches.map((branch) => String(branch.managerEmail || '').toLowerCase().trim());
+
+    if (normalizedBranches.some((branch) =>
+      !branch.name || !branch.managerName || !branch.managerEmail || !branch.managerPassword
+    )) {
+      throw new BadRequestError('Each store must include a name and complete manager credentials.');
+    }
+
+    if (normalizedBranches.some((branch) => String(branch.managerPassword).length < 8)) {
+      throw new BadRequestError('Store manager passwords must be at least 8 characters long.');
+    }
+
+    if (new Set([normalizedEmail, ...managerEmails]).size !== managerEmails.length + 1) {
+      throw new ConflictError('Admin and store manager email addresses must be unique.');
+    }
 
     // Check if user email already exists
     const existingUser = await prisma.user.findUnique({
@@ -116,6 +143,10 @@ class AuthService {
         data: {
           name: organizationName.trim(),
           tax_id: taxId ? taxId.trim() : null,
+          industry: industry ? industry.trim() : null,
+          website: website ? website.trim() : null,
+          phone: phone ? phone.trim() : null,
+          address: address ? address.trim() : null,
         },
       });
 
@@ -139,6 +170,36 @@ class AuthService {
           in_app_enabled: true,
         })),
       });
+
+      for (const branch of normalizedBranches) {
+        const location = await tx.location.create({
+          data: {
+            org_id: org.id,
+            name: branch.name.trim(),
+            current_compliance_score: 0.0,
+          },
+        });
+        const manager = await tx.user.create({
+          data: {
+            org_id: org.id,
+            name: branch.managerName.trim(),
+            email: branch.managerEmail.toLowerCase().trim(),
+            password_hash: await hashText(branch.managerPassword, 10),
+            role: 'LOCATION_MANAGER',
+          },
+        });
+        await tx.userLocationAccess.create({
+          data: { user_id: manager.id, location_id: location.id },
+        });
+        await tx.notificationPreference.createMany({
+          data: alertTypes.map((type) => ({
+            user_id: manager.id,
+            alert_type: type,
+            email_enabled: true,
+            in_app_enabled: true,
+          })),
+        });
+      }
 
       return { org, admin };
     });

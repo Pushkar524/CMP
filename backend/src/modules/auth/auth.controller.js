@@ -24,13 +24,29 @@ class AuthController {
    */
   async register(req, res, next) {
     try {
-      const { organizationName, taxId, adminName, email, password } = req.body;
+      const {
+        organizationName,
+        taxId,
+        adminName,
+        email,
+        password,
+        industry,
+        website,
+        phone,
+        address,
+        branches,
+      } = req.body;
       const result = await authService.registerOrgAdmin({
         organizationName,
         taxId,
         adminName,
         email,
         password,
+        industry,
+        website,
+        phone,
+        address,
+        branches,
       });
 
       res.status(201).json({
