@@ -32,6 +32,13 @@ export default function DependencyGraph({ dependencies = [], licenseTypes = [], 
         </span>
       </div>
 
+      {activeDocs.length === 0 ? (
+        <div className="rounded-lg border border-dashed border-gray-300 bg-gray-50 p-8 text-center">
+          <ShieldCheck className="mx-auto mb-2 h-8 w-8 text-gray-400" />
+          <h4 className="text-sm font-bold text-gray-700">Dependency monitoring is inactive</h4>
+          <p className="mt-1 text-xs text-gray-500">Upload the first document for this location to activate live prerequisite tracking.</p>
+        </div>
+      ) : (
       <div className="space-y-4">
         {dependencies.map((dep) => {
           const prereqType = licenseTypes.find(lt => lt.id === dep.prerequisite_license_type_id);
@@ -103,6 +110,7 @@ export default function DependencyGraph({ dependencies = [], licenseTypes = [], 
           );
         })}
       </div>
+      )}
     </div>
   );
 }
