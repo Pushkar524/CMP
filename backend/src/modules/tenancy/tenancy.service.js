@@ -66,36 +66,93 @@ class TenancyService {
   /**
    * Creates a new location within the organization (Org Admin only)
    */
-  async createLocation(orgId, { name, code, type, state, address }) {
-    if (!name || !code || !type || !state) {
-      throw new BadRequestError('Location name, unique code, type, and state are required.');
+  async createLocation(orgId, { name, managerName, managerEmail, managerPassword }) {
+    if (!name || !managerName || !managerEmail || !managerPassword) {
+      throw new BadRequestError('Store name, manager name, manager email, and security key are required.');
     }
 
-    // Check unique code within organization
-    const existing = await prisma.location.findUnique({
-      where: {
-        org_id_code: {
+    if (managerPassword.length < 8) {
+      throw new BadRequestError('Manager security key must be at least 8 characters long.');
+    }
+
+    const normalizedEmail = managerEmail.toLowerCase().trim();
+    const existingUser = await prisma.user.findUnique({ where: { email: normalizedEmail } });
+    if (existingUser) {
+      throw new ConflictError('A manager with this email address already exists.');
+    }
+
+    const passwordHash = await hashText(managerPassword, 10);
+
+    return await prisma.$transaction(async (tx) => {
+      const location = await tx.location.create({
+        data: {
           org_id: orgId,
-          code: code.trim().toUpperCase(),
+          name: name.trim(),
+          current_compliance_score: 0.0,
         },
-      },
-    });
+      });
 
-    if (existing) {
-      throw new ConflictError(`A location with code '${code}' already exists in your organization.`);
+      const manager = await tx.user.create({
+        data: {
+          org_id: orgId,
+          name: managerName.trim(),
+          email: normalizedEmail,
+          password_hash: passwordHash,
+          role: 'LOCATION_MANAGER',
+        },
+      });
+
+      await tx.userLocationAccess.create({
+        data: { user_id: manager.id, location_id: location.id },
+      });
+
+      await tx.notificationPreference.createMany({
+        data: ['EXPIRY_WARNING', 'LAPSED_LICENSE', 'CASCADING_RISK'].map((alertType) => ({
+          user_id: manager.id,
+          alert_type: alertType,
+          email_enabled: true,
+          in_app_enabled: true,
+        })),
+      });
+
+      return { location, manager: { id: manager.id, name: manager.name, email: manager.email } };
+    });
+  }
+
+  /**
+   * Completes or updates the operational profile for a location.
+   */
+  async updateLocation(orgId, locationId, user, data) {
+    const location = await prisma.location.findFirst({ where: { id: locationId, org_id: orgId } });
+    if (!location) throw new NotFoundError('Location not found in this organization.');
+
+    if (user.role !== 'ORG_ADMIN' && !user.accessibleLocationIds.includes(locationId)) {
+      throw new ForbiddenError('You do not have access to update this location.');
     }
 
-    return await prisma.location.create({
-      data: {
-        org_id: orgId,
-        name: name.trim(),
-        code: code.trim().toUpperCase(),
-        type: type.trim().toUpperCase(),
-        state: state.trim(),
-        address: address ? address.trim() : null,
-        current_compliance_score: 100.0,
-      },
-    });
+    const allowedFields = ['name', 'code', 'type', 'state', 'address', 'city', 'pincode', 'phone', 'gstin', 'employee_count', 'operating_hours'];
+    const updateData = {};
+    for (const field of allowedFields) {
+      if (data[field] !== undefined) updateData[field] = data[field] === '' ? null : data[field];
+    }
+
+    if (updateData.code) updateData.code = updateData.code.trim().toUpperCase();
+    if (updateData.type) updateData.type = updateData.type.trim().toUpperCase();
+    if (updateData.employee_count !== undefined && updateData.employee_count !== null) {
+      updateData.employee_count = Number(updateData.employee_count);
+    }
+
+    const nextType = updateData.type ?? location.type;
+    const nextState = updateData.state ?? location.state;
+    const nextAddress = updateData.address ?? location.address;
+    updateData.profile_completed = Boolean(nextType && nextState && nextAddress);
+
+    try {
+      return await prisma.location.update({ where: { id: locationId }, data: updateData });
+    } catch (err) {
+      if (err.code === 'P2002') throw new ConflictError(`A location with code '${updateData.code}' already exists.`);
+      throw err;
+    }
   }
 
   /**
