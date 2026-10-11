@@ -55,7 +55,7 @@ export default function Dashboard() {
   // Compute roll-up organization compliance score (Section 4.4 in README)
   const avgScore = visibleLocations.length > 0
     ? Math.round(visibleLocations.reduce((acc, l) => acc + (l.current_compliance_score || 0), 0) / visibleLocations.length)
-    : 100;
+    : null;
 
   const expiredCount = documents.filter(d => d.status === "EXPIRED" || (d.expiry_date && new Date(d.expiry_date) < new Date())).length;
   const pendingCount = documents.filter(d => d.status === "PENDING_VERIFICATION").length;
@@ -80,6 +80,7 @@ export default function Dashboard() {
   return (
     <div className="space-y-6">
       {/* Top Banner: Cascading Risk Warning */}
+      {expiredCount > 0 && (
       <div className="bg-amber-500/10 border border-amber-500/30 rounded-2xl p-5 flex flex-col md:flex-row items-start md:items-center justify-between gap-4">
         <div className="flex items-start gap-3">
           <div className="p-2.5 bg-amber-500 text-white rounded-xl shadow-xs shrink-0 mt-0.5">
@@ -87,11 +88,10 @@ export default function Dashboard() {
           </div>
           <div>
             <h2 className="text-sm font-bold text-amber-950">
-              Cascading Risk Warning: Andheri Central Fulfillment Warehouse
+              Compliance documents require attention
             </h2>
             <p className="text-xs text-amber-900/80 mt-1 max-w-2xl leading-relaxed">
-              Lift Safety Clearance expired. As per regulatory rules, the downstream{" "}
-              <strong>Fire Safety NOC</strong> is automatically penalized (-18 pts) until the prerequisite is renewed.
+              One or more documents in your organization are expired. Review the compliance page for the affected locations and recommended actions.
             </p>
           </div>
         </div>
@@ -103,6 +103,7 @@ export default function Dashboard() {
           <ArrowRight className="w-4 h-4" />
         </Link>
       </div>
+      )}
 
       {/* KPI Stats Overview */}
       <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
@@ -112,13 +113,19 @@ export default function Dashboard() {
             <div className="text-[11px] font-bold text-gray-500 uppercase tracking-wider">
               Org Compliance Index
             </div>
-            <div className="text-2xl font-black text-gray-900 mt-1">{avgScore}%</div>
+            <div className="text-2xl font-black text-gray-900 mt-1">{avgScore === null ? "—" : `${avgScore}%`}</div>
             <div className="text-[11px] text-gray-500 mt-1 font-medium">
-              Rolled up across {visibleLocations.length} locations
+              {avgScore === null ? "Add a location to begin scoring" : `Rolled up across ${visibleLocations.length} locations`}
             </div>
           </div>
           <div className="scale-75 -mr-3">
-            <ScoreGauge score={avgScore} size={90} strokeWidth={8} showLabel={false} />
+            {avgScore === null ? (
+              <div className="w-[90px] h-[90px] rounded-full border-8 border-gray-100 flex items-center justify-center text-xs text-gray-400">
+                Not scored
+              </div>
+            ) : (
+              <ScoreGauge score={avgScore} size={90} strokeWidth={8} showLabel={false} />
+            )}
           </div>
         </div>
 
