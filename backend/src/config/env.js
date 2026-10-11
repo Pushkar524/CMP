@@ -23,6 +23,7 @@ const config = {
       region: process.env.MINIO_REGION || 'us-east-1',
     },
     s3: {
+      endpoint: process.env.S3_ENDPOINT,
       accessKeyId: process.env.AWS_ACCESS_KEY_ID,
       secretAccessKey: process.env.AWS_SECRET_ACCESS_KEY,
       region: process.env.AWS_REGION || 'ap-south-1',
