@@ -40,6 +40,10 @@ model Organization {
   id         String   @id @default(uuid())
   name       String
   tax_id     String?  @unique
+  industry   String?
+  website    String?
+  phone      String?
+  address    String?
   created_at DateTime @default(now())
   updated_at DateTime @updatedAt
 
@@ -58,8 +62,8 @@ model Location {
   org_id                   String
   name                     String
   code                     String?
-  type                     String?  // e.g. "STORE", "WAREHOUSE", "OFFICE", "FACTORY"
-  state                    String?  // e.g. "Karnataka", "Maharashtra"
+  type                     String? // e.g. "STORE", "WAREHOUSE", "OFFICE", "FACTORY"
+  state                    String? // e.g. "Karnataka", "Maharashtra"
   address                  String?
   city                     String?
   pincode                  String?
@@ -122,18 +126,18 @@ model UserLocationAccess {
 // ----------------------------------------------------
 
 model LicenseType {
-  id                     String   @id @default(uuid())
-  name                   String
-  code                   String   @unique // e.g. "TRADE_LICENSE", "FIRE_NOC", "PAN", "DGFT_IEC"
-  description            String?
-  issuing_authority      String?
+  id                      String   @id @default(uuid())
+  name                    String
+  code                    String   @unique // e.g. "TRADE_LICENSE", "FIRE_NOC", "PAN", "DGFT_IEC"
+  description             String?
+  issuing_authority       String?
   default_validity_months Int?
-  is_lifetime_valid      Boolean  @default(false)
-  created_at             DateTime @default(now())
-  updated_at             DateTime @updatedAt
+  is_lifetime_valid       Boolean  @default(false)
+  created_at              DateTime @default(now())
+  updated_at              DateTime @updatedAt
 
-  dependent_on           Dependency[]             @relation("DependentLicense")
-  prerequisite_for       Dependency[]             @relation("PrerequisiteLicense")
+  dependent_on           Dependency[]           @relation("DependentLicense")
+  prerequisite_for       Dependency[]           @relation("PrerequisiteLicense")
   license_type_rules     LicenseTypeStateRule[]
   required_license_types RequiredLicenseType[]
   documents              Document[]
@@ -142,11 +146,11 @@ model LicenseType {
 }
 
 model Dependency {
-  id                            String   @id @default(uuid())
-  license_type_id               String
+  id                           String   @id @default(uuid())
+  license_type_id              String
   prerequisite_license_type_id String
-  is_blocking                   Boolean  @default(true)
-  created_at                    DateTime @default(now())
+  is_blocking                  Boolean  @default(true)
+  created_at                   DateTime @default(now())
 
   license_type              LicenseType @relation("DependentLicense", fields: [license_type_id], references: [id], onDelete: Cascade)
   prerequisite_license_type LicenseType @relation("PrerequisiteLicense", fields: [prerequisite_license_type_id], references: [id], onDelete: Cascade)
@@ -172,8 +176,8 @@ model LicenseTypeStateRule {
 model RequiredLicenseType {
   id              String   @id @default(uuid())
   license_type_id String
-  location_type   String   // e.g. "STORE", "WAREHOUSE"
-  state           String?  // null means applies to all states
+  location_type   String // e.g. "STORE", "WAREHOUSE"
+  state           String? // null means applies to all states
   is_mandatory    Boolean  @default(true)
   created_at      DateTime @default(now())
 
@@ -205,7 +209,7 @@ model ComplianceScore {
 model Document {
   id                 String         @id @default(uuid())
   org_id             String
-  location_id        String?        // null if organization-wide document (e.g. DGFT IEC)
+  location_id        String? // null if organization-wide document (e.g. DGFT IEC)
   license_type_id    String
   file_name          String
   storage_key        String
@@ -219,17 +223,17 @@ model Document {
   uploaded_by_id     String
   verified_by_id     String?
   verified_at        DateTime?
-  parent_document_id String?        // Self-referencing link for renewal version chain
+  parent_document_id String? // Self-referencing link for renewal version chain
   created_at         DateTime       @default(now())
   updated_at         DateTime       @updatedAt
 
-  organization    Organization   @relation(fields: [org_id], references: [id], onDelete: Cascade)
-  location        Location?      @relation(fields: [location_id], references: [id], onDelete: SetNull)
-  license_type    LicenseType    @relation(fields: [license_type_id], references: [id], onDelete: Restrict)
-  uploaded_by     User           @relation("UploadedBy", fields: [uploaded_by_id], references: [id])
-  verified_by     User?          @relation("VerifiedBy", fields: [verified_by_id], references: [id])
-  parent_document Document?      @relation("RenewalChain", fields: [parent_document_id], references: [id])
-  child_renewals  Document[]     @relation("RenewalChain")
+  organization    Organization        @relation(fields: [org_id], references: [id], onDelete: Cascade)
+  location        Location?           @relation(fields: [location_id], references: [id], onDelete: SetNull)
+  license_type    LicenseType         @relation(fields: [license_type_id], references: [id], onDelete: Restrict)
+  uploaded_by     User                @relation("UploadedBy", fields: [uploaded_by_id], references: [id])
+  verified_by     User?               @relation("VerifiedBy", fields: [verified_by_id], references: [id])
+  parent_document Document?           @relation("RenewalChain", fields: [parent_document_id], references: [id])
+  child_renewals  Document[]          @relation("RenewalChain")
   audit_link_docs AuditLinkDocument[]
 
   @@index([org_id])
@@ -254,8 +258,8 @@ model AuditLink {
   is_active     Boolean  @default(true)
   created_at    DateTime @default(now())
 
-  organization Organization           @relation(fields: [org_id], references: [id], onDelete: Cascade)
-  created_by   User                   @relation("CreatedBy", fields: [created_by_id], references: [id])
+  organization Organization         @relation(fields: [org_id], references: [id], onDelete: Cascade)
+  created_by   User                 @relation("CreatedBy", fields: [created_by_id], references: [id])
   documents    AuditLinkDocument[]
   access_logs  AuditLinkAccessLog[]
 
@@ -295,15 +299,15 @@ model AuditLinkAccessLog {
 // ----------------------------------------------------
 
 model NotificationLog {
-  id         String              @id @default(uuid())
-  org_id     String
-  user_id    String
-  type       AlertType
-  channel    NotificationChannel
-  recipient  String
-  content    String
-  sent_at    DateTime            @default(now())
-  status     String              @default("SENT")
+  id        String              @id @default(uuid())
+  org_id    String
+  user_id   String
+  type      AlertType
+  channel   NotificationChannel
+  recipient String
+  content   String
+  sent_at   DateTime            @default(now())
+  status    String              @default("SENT")
 
   organization Organization @relation(fields: [org_id], references: [id], onDelete: Cascade)
   user         User         @relation(fields: [user_id], references: [id], onDelete: Cascade)
@@ -314,14 +318,14 @@ model NotificationLog {
 }
 
 model NotificationPreference {
-  id            String    @id @default(uuid())
-  user_id       String
-  alert_type    AlertType
-  email_enabled Boolean   @default(true)
-  sms_enabled   Boolean   @default(false)
-  in_app_enabled Boolean  @default(true)
-  created_at    DateTime  @default(now())
-  updated_at    DateTime  @updatedAt
+  id             String    @id @default(uuid())
+  user_id        String
+  alert_type     AlertType
+  email_enabled  Boolean   @default(true)
+  sms_enabled    Boolean   @default(false)
+  in_app_enabled Boolean   @default(true)
+  created_at     DateTime  @default(now())
+  updated_at     DateTime  @updatedAt
 
   user User @relation(fields: [user_id], references: [id], onDelete: Cascade)
 
