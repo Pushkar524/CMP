@@ -3,29 +3,48 @@ import { Plus, MapPin, Building, ShieldCheck, Search, Filter } from "lucide-reac
 import { api } from "../../services/api";
 import { useAuth } from "../../context/AuthContext";
 import ScoreGauge from "../../components/ScoreGauge";
-import AddLocationModal from "../../components/Modals/AddLocationModal";
+import RegisterLocationModal from "../../components/Modals/RegisterLocationModal";
+import CompleteLocationModal from "../../components/Modals/CompleteLocationModal";
 
 export default function Locations() {
-  const { isOrgAdmin, canAccessLocation } = useAuth();
+  const { user, isOrgAdmin, canAccessLocation } = useAuth();
   const [locations, setLocations] = useState([]);
   const [documents, setDocuments] = useState([]);
   const [showAddModal, setShowAddModal] = useState(false);
   const [search, setSearch] = useState("");
   const [typeFilter, setTypeFilter] = useState("ALL");
   const [selectedLocation, setSelectedLocation] = useState(null);
+  const [profileLocation, setProfileLocation] = useState(null);
 
-  const loadData = () => {
-    setLocations(api.getLocations());
-    setDocuments(api.getDocuments());
+  const loadData = async () => {
+    try {
+      const [nextLocations, nextDocuments] = await Promise.all([
+        api.getLocations(),
+        api.getDocuments(),
+      ]);
+      setLocations(Array.isArray(nextLocations) ? nextLocations : []);
+      setDocuments(Array.isArray(nextDocuments) ? nextDocuments : []);
+    } catch (error) {
+      console.error("Locations data loading failed", error);
+      setLocations([]);
+      setDocuments([]);
+    }
   };
 
   useEffect(() => {
     loadData();
   }, []);
 
-  const handleAddLocation = (newLoc) => {
-    api.addLocation(newLoc);
-    loadData();
+  useEffect(() => {
+    if (!isOrgAdmin) {
+      const incompleteLocation = locations.find((location) => !location.profile_completed);
+      setProfileLocation(incompleteLocation || null);
+    }
+  }, [isOrgAdmin, locations, user?.id]);
+
+  const handleAddLocation = async (newLoc) => {
+    await api.addLocation(newLoc);
+    await loadData();
   };
 
   const filteredLocations = locations
@@ -93,7 +112,7 @@ export default function Locations() {
       <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-5">
         {filteredLocations.map((loc) => {
           const locDocs = documents.filter(d => d.location_id === loc.id);
-          const score = loc.current_compliance_score || 100;
+          const score = loc.current_compliance_score ?? 0;
           const isHealthy = score >= 90;
           const isWarning = score >= 70 && score < 90;
 
@@ -195,11 +214,21 @@ export default function Locations() {
       )}
 
       {/* Add Location Modal */}
-      <AddLocationModal
+      <RegisterLocationModal
         isOpen={showAddModal}
         onClose={() => setShowAddModal(false)}
         onAdd={handleAddLocation}
       />
+
+      {profileLocation && (
+        <CompleteLocationModal
+          location={profileLocation}
+          onSave={async (details) => {
+            await api.updateLocation(profileLocation.id, details);
+            await loadData();
+          }}
+        />
+      )}
     </div>
   );
 }
