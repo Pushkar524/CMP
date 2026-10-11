@@ -24,6 +24,10 @@ router.post('/locations', authorizeRoles('ORG_ADMIN'), (req, res, next) =>
   tenancyController.createLocation(req, res, next)
 );
 
+router.patch('/locations/:locationId', (req, res, next) =>
+  tenancyController.updateLocation(req, res, next)
+);
+
 // User Management (Org Admin only)
 router.get('/users', authorizeRoles('ORG_ADMIN'), (req, res, next) =>
   tenancyController.getUsers(req, res, next)
