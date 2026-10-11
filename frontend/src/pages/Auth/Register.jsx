@@ -1,42 +1,17 @@
 import React, { useState } from "react";
 import { useNavigate, Link } from "react-router-dom";
 import {
-  Shield, Building2, User, Mail, Lock, Phone, MapPin,
+  Shield, Building2, User, Mail, Lock, Phone,
   Plus, Trash2, ArrowRight, ArrowLeft, CheckCircle2,
-  Store, Warehouse, Briefcase, Factory, ChevronDown,
-  Hash, FileText, Globe, Users, Clock
+  Store, ChevronDown, Globe
 } from "lucide-react";
-
-const INDIAN_STATES = [
-  "Andhra Pradesh","Arunachal Pradesh","Assam","Bihar","Chhattisgarh",
-  "Goa","Gujarat","Haryana","Himachal Pradesh","Jharkhand","Karnataka",
-  "Kerala","Madhya Pradesh","Maharashtra","Manipur","Meghalaya","Mizoram",
-  "Nagaland","Odisha","Punjab","Rajasthan","Sikkim","Tamil Nadu","Telangana",
-  "Tripura","Uttar Pradesh","Uttarakhand","West Bengal","Delhi (NCR)",
-  "Jammu & Kashmir","Ladakh","Chandigarh","Puducherry"
-];
-
-const FACILITY_TYPES = [
-  { value: "STORE",     label: "Retail Store",           icon: Store,     color: "indigo"  },
-  { value: "WAREHOUSE", label: "Warehouse / Hub",         icon: Warehouse, color: "violet"  },
-  { value: "OFFICE",    label: "Corporate Office",        icon: Briefcase, color: "sky"     },
-  { value: "FACTORY",   label: "Manufacturing Factory",   icon: Factory,   color: "amber"   },
-];
 
 const emptyBranch = () => ({
   id: crypto.randomUUID(),
   name: "",
-  code: "",
-  type: "STORE",
-  state: "Karnataka",
-  address: "",
-  city: "",
-  pincode: "",
-  phone: "",
   managerName: "",
-  gstin: "",
-  employeeCount: "",
-  operatingHours: "9:00 AM – 9:00 PM",
+  managerEmail: "",
+  managerPassword: "",
 });
 
 const STEPS = ["Organization", "Admin Account", "Stores & Branches", "Review"];
@@ -58,7 +33,7 @@ export default function Register() {
   });
 
   // Step 3 — Branches
-  const [branches, setBranches] = useState([emptyBranch()]);
+  const [branches, setBranches] = useState([]);
 
   // ── Helpers ──────────────────────────────────────────────
   const updateOrg = (k, v) => setOrg(o => ({ ...o, [k]: v }));
@@ -71,7 +46,9 @@ export default function Register() {
   const canNext = () => {
     if (step === 0) return org.name && org.taxId;
     if (step === 1) return admin.name && admin.email && admin.password.length >= 8 && admin.password === admin.confirm;
-    if (step === 2) return branches.every(b => b.name && b.code && b.state);
+    if (step === 2) return branches.length === 0 || branches.every(b =>
+      b.name && b.managerName && b.managerEmail && b.managerPassword.length >= 8
+    );
     return true;
   };
 
@@ -185,7 +162,7 @@ export default function Register() {
                   <Field label="Business Phone">
                     <Input id="org-phone" placeholder="+91 98765 43210" value={org.phone} onChange={v => updateOrg("phone", v)} icon={Phone} />
                   </Field>
-                  <Field label="Website">
+                  <Field label="Website" hint="optional">
                     <Input id="org-website" placeholder="https://yourcompany.com" value={org.website} onChange={v => updateOrg("website", v)} icon={Globe} />
                   </Field>
                 </div>
@@ -238,7 +215,7 @@ export default function Register() {
             {step === 2 && (
               <div className="p-8 space-y-6">
                 <div className="flex items-start justify-between">
-                  <SectionHeader icon={Store} title="Stores & Branches" subtitle={`Add your operating locations (${branches.length} added)`} />
+                  <SectionHeader icon={Store} title="Stores & Branches" subtitle="Optional — managers can complete store details later" />
                   <button
                     type="button"
                     onClick={addBranch}
@@ -248,18 +225,25 @@ export default function Register() {
                   </button>
                 </div>
 
-                <div className="space-y-5 max-h-[520px] overflow-y-auto pr-1 custom-scroll">
-                  {branches.map((branch, idx) => (
-                    <BranchCard
-                      key={branch.id}
-                      branch={branch}
-                      index={idx}
-                      canRemove={branches.length > 1}
-                      onChange={(k, v) => updateBranch(branch.id, k, v)}
-                      onRemove={() => removeBranch(branch.id)}
-                    />
-                  ))}
-                </div>
+                {branches.length > 0 ? (
+                  <div className="space-y-5 max-h-[520px] overflow-y-auto pr-1 custom-scroll">
+                    {branches.map((branch, idx) => (
+                      <BranchCard
+                        key={branch.id}
+                        branch={branch}
+                        index={idx}
+                        canRemove
+                        onChange={(k, v) => updateBranch(branch.id, k, v)}
+                        onRemove={() => removeBranch(branch.id)}
+                      />
+                    ))}
+                  </div>
+                ) : (
+                  <div className="rounded-2xl border border-dashed border-slate-700 p-8 text-center">
+                    <p className="text-sm font-semibold text-slate-300">No stores added yet</p>
+                    <p className="mt-1 text-xs text-slate-500">You can skip this step and add stores from the dashboard later.</p>
+                  </div>
+                )}
               </div>
             )}
 
@@ -283,18 +267,15 @@ export default function Register() {
                 </ReviewSection>
 
                 <ReviewSection title={`Locations (${branches.length})`}>
-                  {branches.map((b, i) => (
+                  {branches.length > 0 ? branches.map((b, i) => (
                     <div key={b.id} className="py-2.5 border-b border-slate-800 last:border-0">
                       <div className="text-slate-200 text-xs font-bold mb-1">{i + 1}. {b.name || `Branch ${i + 1}`}</div>
                       <div className="flex flex-wrap gap-x-4 gap-y-1 text-xs text-slate-400">
-                        <span>Code: <span className="text-slate-300">{b.code || "—"}</span></span>
-                        <span>Type: <span className="text-slate-300">{b.type}</span></span>
-                        <span>State: <span className="text-slate-300">{b.state}</span></span>
-                        {b.city && <span>City: <span className="text-slate-300">{b.city}</span></span>}
-                        {b.gstin && <span>GSTIN: <span className="text-slate-300">{b.gstin}</span></span>}
+                        <span>Manager: <span className="text-slate-300">{b.managerName || "—"}</span></span>
+                        <span>Email: <span className="text-slate-300">{b.managerEmail || "—"}</span></span>
                       </div>
                     </div>
-                  ))}
+                  )) : <p className="text-xs text-slate-500">Skipped — stores can be added from the dashboard.</p>}
                 </ReviewSection>
               </div>
             )}
@@ -317,7 +298,7 @@ export default function Register() {
                   disabled={!canNext()}
                   className="flex items-center gap-1.5 px-6 py-2.5 bg-indigo-600 hover:bg-indigo-500 disabled:opacity-40 disabled:cursor-not-allowed text-white text-xs font-bold rounded-xl transition-all shadow-lg shadow-indigo-600/30"
                 >
-                  Continue <ArrowRight className="w-4 h-4" />
+                  {step === 2 && branches.length === 0 ? "Skip for now" : "Continue"} <ArrowRight className="w-4 h-4" />
                 </button>
               ) : (
                 <button
@@ -350,15 +331,6 @@ export default function Register() {
 // ── BranchCard ────────────────────────────────────────────────
 function BranchCard({ branch, index, canRemove, onChange, onRemove }) {
   const [expanded, setExpanded] = useState(index === 0);
-  const typeInfo = FACILITY_TYPES.find(f => f.value === branch.type) || FACILITY_TYPES[0];
-  const Icon = typeInfo.icon;
-
-  const colorMap = {
-    indigo: "bg-indigo-600/20 text-indigo-400 border-indigo-600/30",
-    violet: "bg-violet-600/20 text-violet-400 border-violet-600/30",
-    sky:    "bg-sky-600/20 text-sky-400 border-sky-600/30",
-    amber:  "bg-amber-600/20 text-amber-400 border-amber-600/30",
-  };
 
   return (
     <div className="border border-slate-700/80 rounded-2xl overflow-hidden bg-slate-800/40">
@@ -368,16 +340,14 @@ function BranchCard({ branch, index, canRemove, onChange, onRemove }) {
         onClick={() => setExpanded(e => !e)}
       >
         <div className="flex items-center gap-3">
-          <div className={`p-2 rounded-xl border ${colorMap[typeInfo.color]}`}>
-            <Icon className="w-4 h-4" />
+          <div className="p-2 rounded-xl border bg-indigo-600/20 text-indigo-400 border-indigo-600/30">
+            <Store className="w-4 h-4" />
           </div>
           <div>
             <div className="text-sm font-bold text-white">
               {branch.name || <span className="text-slate-500">Branch {index + 1} — Untitled</span>}
             </div>
-            <div className="text-[11px] text-slate-500 mt-0.5">
-              {typeInfo.label} {branch.code && `• ${branch.code.toUpperCase()}`} {branch.state && `• ${branch.state}`}
-            </div>
+            <div className="text-[11px] text-slate-500 mt-0.5">Manager details</div>
           </div>
         </div>
         <div className="flex items-center gap-2">
@@ -397,88 +367,25 @@ function BranchCard({ branch, index, canRemove, onChange, onRemove }) {
       {/* Branch Form */}
       {expanded && (
         <div className="px-4 pb-5 pt-1 space-y-4 border-t border-slate-700/60">
-
-          {/* Facility Type Selector */}
           <div>
-            <label className="block text-[10px] font-bold uppercase tracking-wider text-slate-400 mb-2">Facility Type</label>
-            <div className="grid grid-cols-4 gap-2">
-              {FACILITY_TYPES.map(ft => {
-                const FIcon = ft.icon;
-                const selected = branch.type === ft.value;
-                return (
-                  <button
-                    key={ft.value}
-                    type="button"
-                    onClick={() => onChange("type", ft.value)}
-                    className={`flex flex-col items-center gap-1.5 p-3 rounded-xl border text-xs font-bold transition-all ${
-                      selected
-                        ? `border-${ft.color}-500/60 bg-${ft.color}-600/20 text-${ft.color}-300`
-                        : "border-slate-700 bg-slate-800/40 text-slate-500 hover:border-slate-600"
-                    }`}
-                  >
-                    <FIcon className="w-4 h-4" />
-                    <span className="text-[10px] text-center leading-tight">{ft.label.split(" / ")[0]}</span>
-                  </button>
-                );
-              })}
-            </div>
-          </div>
-
-          <div className="grid grid-cols-2 gap-3">
             <BField label="Branch / Store Name" required>
               <BInput id={`branch-name-${index}`} placeholder="e.g. Koramangala Hypermart" value={branch.name} onChange={v => onChange("name", v)} />
             </BField>
-            <BField label="Branch Code" required>
-              <BInput id={`branch-code-${index}`} placeholder="BLR-STR-05" value={branch.code} onChange={v => onChange("code", v.toUpperCase())} />
-            </BField>
           </div>
 
           <div className="grid grid-cols-2 gap-3">
-            <BField label="State / UT" required>
-              <BSelect id={`branch-state-${index}`} value={branch.state} onChange={v => onChange("state", v)} options={INDIAN_STATES} />
-            </BField>
-            <BField label="City">
-              <BInput id={`branch-city-${index}`} placeholder="Bengaluru" value={branch.city} onChange={v => onChange("city", v)} />
-            </BField>
-          </div>
-
-          <div className="grid grid-cols-2 gap-3">
-            <BField label="PIN Code">
-              <BInput id={`branch-pin-${index}`} placeholder="560034" value={branch.pincode} onChange={v => onChange("pincode", v)} />
-            </BField>
-            <BField label="Contact Phone">
-              <BInput id={`branch-phone-${index}`} placeholder="+91 80 1234 5678" value={branch.phone} onChange={v => onChange("phone", v)} />
-            </BField>
-          </div>
-
-          <div className="grid grid-cols-2 gap-3">
-            <BField label="Branch Manager Name">
+            <BField label="Manager Name" required>
               <BInput id={`branch-mgr-${index}`} placeholder="Manager full name" value={branch.managerName} onChange={v => onChange("managerName", v)} />
             </BField>
-            <BField label="Branch GSTIN">
-              <BInput id={`branch-gstin-${index}`} placeholder="29AABCA1234F1Z8" value={branch.gstin} onChange={v => onChange("gstin", v)} />
+            <BField label="Manager Email" required>
+              <BInput id={`branch-mgr-email-${index}`} type="email" placeholder="manager@yourcompany.com" value={branch.managerEmail} onChange={v => onChange("managerEmail", v)} />
             </BField>
           </div>
 
-          <div className="grid grid-cols-2 gap-3">
-            <BField label="Employee Count">
-              <BInput id={`branch-emp-${index}`} placeholder="e.g. 45" type="number" value={branch.employeeCount} onChange={v => onChange("employeeCount", v)} />
-            </BField>
-            <BField label="Operating Hours">
-              <BInput id={`branch-hours-${index}`} placeholder="9:00 AM – 9:00 PM" value={branch.operatingHours} onChange={v => onChange("operatingHours", v)} />
-            </BField>
-          </div>
-
-          <BField label="Full Street Address">
-            <textarea
-              id={`branch-addr-${index}`}
-              rows={2}
-              value={branch.address}
-              onChange={e => onChange("address", e.target.value)}
-              placeholder="Door No., Street, Area, City, State – PIN"
-              className="w-full bg-slate-900 border border-slate-700 rounded-lg px-3 py-2 text-xs text-white placeholder-slate-500 focus:ring-2 focus:ring-indigo-500 focus:outline-none resize-none"
-            />
+          <BField label="Temporary Manager Password" required>
+            <BInput id={`branch-mgr-password-${index}`} type="password" placeholder="At least 8 characters" value={branch.managerPassword} onChange={v => onChange("managerPassword", v)} />
           </BField>
+          <p className="text-[11px] text-slate-500">The manager can use these credentials to complete the store profile after signing in.</p>
         </div>
       )}
     </div>
@@ -568,22 +475,6 @@ function BInput({ id, value, onChange, placeholder, type = "text" }) {
       placeholder={placeholder}
       className="w-full bg-slate-900 border border-slate-700 hover:border-slate-600 rounded-lg px-3 py-2 text-xs text-white placeholder-slate-500 focus:ring-2 focus:ring-indigo-500 focus:outline-none transition-all"
     />
-  );
-}
-
-function BSelect({ id, value, onChange, options }) {
-  return (
-    <div className="relative">
-      <select
-        id={id}
-        value={value}
-        onChange={e => onChange(e.target.value)}
-        className="w-full bg-slate-900 border border-slate-700 hover:border-slate-600 rounded-lg px-3 py-2 text-xs text-white focus:ring-2 focus:ring-indigo-500 focus:outline-none appearance-none"
-      >
-        {options.map(o => <option key={o} value={o}>{o}</option>)}
-      </select>
-      <ChevronDown className="w-3.5 h-3.5 text-slate-500 absolute right-2.5 top-1/2 -translate-y-1/2 pointer-events-none" />
-    </div>
   );
 }
 
