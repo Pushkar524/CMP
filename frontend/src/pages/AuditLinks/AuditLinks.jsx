@@ -22,24 +22,33 @@ export default function AuditLinks() {
   const [copiedToken, setCopiedToken] = useState(null);
   const [selectedLogs, setSelectedLogs] = useState(null);
 
-  const loadData = () => {
-    setAuditLinks(api.getAuditLinks());
-    setDocuments(api.getDocuments());
+  const loadData = async () => {
+    try {
+      const [nextAuditLinks, nextDocuments] = await Promise.all([
+        api.getAuditLinks(),
+        api.getDocuments(),
+      ]);
+      setAuditLinks(Array.isArray(nextAuditLinks) ? nextAuditLinks : []);
+      setDocuments(Array.isArray(nextDocuments) ? nextDocuments : []);
+    } catch (error) {
+      console.error("Audit links data loading failed", error);
+      setAuditLinks([]);
+      setDocuments([]);
+    }
   };
 
   useEffect(() => {
     loadData();
   }, []);
 
-  const handleCreate = (data) => {
-    api.createAuditLink(data);
-    loadData();
+  const handleCreate = async (data) => {
+    await api.createAuditLink(data);
+    await loadData();
   };
 
   const handleRevoke = (id) => {
     if (confirm("Are you sure you want to revoke this audit data room? Inspectors will immediately lose access.")) {
-      api.revokeAuditLink(id);
-      loadData();
+      api.revokeAuditLink(id).then(loadData);
     }
   };
 
