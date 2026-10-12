@@ -133,10 +133,13 @@ export default function VersionHistoryModal({
   const buildHistory = () => {
     const list = [];
 
+    // Determine current version number
+    const currentVersion = document.version || (document.parent_document_id ? 2 : 1);
+
     // Current version
     list.push({
       id: document.id,
-      version: document.version || 2,
+      version: currentVersion,
       file_name: document.file_name,
       issue_date: formatDate(document.issue_date),
       expiry_date: formatDate(document.expiry_date),
@@ -160,7 +163,7 @@ export default function VersionHistoryModal({
 
     // Check if real predecessor versions exist in allDocuments
     let currentParentId = document.parent_document_id;
-    let vCount = (document.version || 2) - 1;
+    let vCount = currentVersion - 1;
 
     while (currentParentId && vCount >= 1) {
       const parentDoc = allDocuments.find((d) => d.id === currentParentId);
@@ -191,26 +194,6 @@ export default function VersionHistoryModal({
       } else {
         break;
       }
-    }
-
-    // Fallback archived version if single item and version > 1
-    if (list.length === 1 && (document.version || 2) > 1) {
-      list.push({
-        id: "prev-" + (document.id || "1"),
-        version: (document.version || 2) - 1,
-        file_name: document.file_name
-          .replace("2026", "2025")
-          .replace("Draft", "Archived"),
-        issue_date: "2024-04-01",
-        expiry_date: "2025-03-31",
-        sha256_hash:
-          "7f83b1657ff1fc53b92dc18148a1d65dfc2d4b1fa3d677284addd200126d9069",
-        status: "EXPIRED",
-        rejection_reason: null,
-        verified_by: "Anantha Krishna",
-        mime_type: document.mime_type,
-        is_current: false,
-      });
     }
 
     return list;

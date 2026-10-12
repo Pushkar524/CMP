@@ -267,6 +267,15 @@ export const documents = {
       formData.append('location_id', docData.location_id);
     }
     formData.append('version', docData.version || 1);
+    if (docData.issue_date) {
+      formData.append('issue_date', docData.issue_date);
+    }
+    if (docData.expiry_date) {
+      formData.append('expiry_date', docData.expiry_date);
+    }
+    if (docData.parent_document_id) {
+      formData.append('parent_document_id', docData.parent_document_id);
+    }
 
     const token = localStorage.getItem('sclip_auth_token');
     const response = await fetch(`${API_BASE}/api/documents`, {

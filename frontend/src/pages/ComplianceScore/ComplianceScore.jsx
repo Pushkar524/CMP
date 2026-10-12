@@ -76,7 +76,24 @@ export default function ComplianceScore() {
   const locDocs = documents.filter(d => d.location_id === selectedLocationId);
   const scoreBreakdown = scoreResult?.breakdown || {};
   const scoreSummary = scoreBreakdown.summary || {};
-  const suggestions = scoreResult?.suggestions || scoreBreakdown.suggestedActions || [];
+  const deductions = scoreBreakdown.deductions || [];
+  const rawSuggestions = scoreBreakdown.suggestedActions || scoreResult?.suggestions || [];
+
+  const suggestions = deductions.length > 0
+    ? deductions.map((d) => ({
+        title: d.licenseName || d.reason,
+        reason: d.reason,
+        desc: d.recommendation || d.reason,
+        severity: d.severity || (d.penalty >= 15 ? "CRITICAL" : d.penalty >= 10 ? "HIGH" : "MEDIUM"),
+        penalty: d.penalty,
+      }))
+    : rawSuggestions.map((action) => ({
+        title: typeof action === "string" ? action.split(" (+")[0] : action.title || "Compliance Action Required",
+        desc: typeof action === "string" ? action : action.desc || "",
+        severity: typeof action === "string" && action.toLowerCase().includes("critical") ? "CRITICAL" : "HIGH",
+        penalty: null,
+      }));
+
   const totalMandatory = scoreBreakdown.totalMandatory ?? scoreSummary.totalRequired ?? 0;
   const uploadedCount = scoreBreakdown.uploadedCount ?? scoreSummary.compliantCount ?? 0;
   const gapsCount = scoreBreakdown.gapsCount ?? scoreSummary.missingCount ?? 0;
@@ -214,21 +231,31 @@ export default function ComplianceScore() {
                             }`}
                           />
                           <div>
-                            <div className="font-bold text-sm">{sug.title}</div>
+                            <div className="font-bold text-sm text-gray-900">{sug.title}</div>
+                            {sug.reason && sug.reason !== sug.title && (
+                              <div className="text-[11px] font-medium text-gray-600 mt-0.5">{sug.reason}</div>
+                            )}
                             <p className="mt-1 text-xs opacity-85 leading-relaxed">{sug.desc}</p>
                           </div>
                         </div>
-                        <span
-                          className={`text-[9px] font-bold uppercase px-2 py-0.5 rounded-full shrink-0 ${
-                            isCritical
-                              ? "bg-red-200 text-red-800"
-                              : isHigh
-                              ? "bg-amber-200 text-amber-800"
-                              : "bg-blue-200 text-blue-800"
-                          }`}
-                        >
-                          {sug.severity}
-                        </span>
+                        <div className="flex flex-col items-end gap-1 shrink-0">
+                          <span
+                            className={`text-[9px] font-bold uppercase px-2 py-0.5 rounded-full ${
+                              isCritical
+                                ? "bg-red-200 text-red-800"
+                                : isHigh
+                                ? "bg-amber-200 text-amber-800"
+                                : "bg-blue-200 text-blue-800"
+                            }`}
+                          >
+                            {sug.severity}
+                          </span>
+                          {sug.penalty != null && (
+                            <span className="text-[10px] font-bold text-red-600 bg-red-100/80 px-1.5 py-0.5 rounded">
+                              -{sug.penalty} pts
+                            </span>
+                          )}
+                        </div>
                       </div>
                     </div>
                   );

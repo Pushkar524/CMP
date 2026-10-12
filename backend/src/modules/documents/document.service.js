@@ -37,7 +37,7 @@ class DocumentService {
    * Upload a new document (multipart/form-data handled by multer in controller).
    */
   async uploadDocument(user, fields, file) {
-    const { license_type_id, location_id, version } = fields;
+    const { license_type_id, location_id, version, issue_date, expiry_date, parent_document_id } = fields;
 
     if (!license_type_id) throw new BadRequestError('license_type_id is required.');
     if (!file) throw new BadRequestError('No file uploaded.');
@@ -57,6 +57,9 @@ class DocumentService {
     const storageKey = `documents/${user.org_id}/${crypto.randomUUID()}-${safeFileName}`;
     await storageService.uploadFile(file.buffer, file.mimetype, storageKey);
 
+    const parsedIssueDate = issue_date ? new Date(issue_date) : null;
+    const parsedExpiryDate = expiry_date ? new Date(expiry_date) : null;
+
     const doc = await prisma.document.create({
       data: {
         org_id: user.org_id,
@@ -67,6 +70,9 @@ class DocumentService {
         file_size: file.size,
         mime_type: file.mimetype,
         sha256_hash: sha256Hash,
+        issue_date: parsedIssueDate && !isNaN(parsedIssueDate) ? parsedIssueDate : null,
+        expiry_date: parsedExpiryDate && !isNaN(parsedExpiryDate) ? parsedExpiryDate : null,
+        parent_document_id: parent_document_id || null,
         uploaded_by_id: user.id,
         status: 'PENDING_VERIFICATION',
       },
