@@ -5,6 +5,7 @@ import { useAuth } from "../../context/AuthContext";
 import ScoreGauge from "../../components/ScoreGauge";
 import RegisterLocationModal from "../../components/Modals/RegisterLocationModal";
 import CompleteLocationModal from "../../components/Modals/CompleteLocationModal";
+import { LocationsSkeleton } from "../../components/Skeletons";
 
 export default function Locations() {
   const { user, isOrgAdmin, canAccessLocation } = useAuth();
@@ -15,6 +16,7 @@ export default function Locations() {
   const [typeFilter, setTypeFilter] = useState("ALL");
   const [selectedLocation, setSelectedLocation] = useState(null);
   const [profileLocation, setProfileLocation] = useState(null);
+  const [isLoading, setIsLoading] = useState(true);
 
   const loadData = async () => {
     try {
@@ -28,6 +30,8 @@ export default function Locations() {
       console.error("Locations data loading failed", error);
       setLocations([]);
       setDocuments([]);
+    } finally {
+      setIsLoading(false);
     }
   };
 
@@ -57,6 +61,10 @@ export default function Locations() {
       const matchType = typeFilter === "ALL" || l.type === typeFilter;
       return matchSearch && matchType;
     });
+
+  if (isLoading) {
+    return <LocationsSkeleton />;
+  }
 
   return (
     <div className="space-y-6">

@@ -15,6 +15,7 @@ import { api } from "../../services/api";
 import { useAuth } from "../../context/AuthContext";
 import ScoreGauge from "../../components/ScoreGauge";
 import UploadDocumentModal from "../../components/Modals/UploadDocumentModal";
+import { DashboardSkeleton } from "../../components/Skeletons";
 
 export default function Dashboard() {
   const { currentOrg, canAccessLocation } = useAuth();
@@ -24,6 +25,7 @@ export default function Dashboard() {
   const [dependencies, setDependencies] = useState([]);
   const [showUploadModal, setShowUploadModal] = useState(false);
   const [isRecalculating, setIsRecalculating] = useState(false);
+  const [isLoading, setIsLoading] = useState(true);
 
   const loadData = async () => {
     try {
@@ -43,6 +45,8 @@ export default function Dashboard() {
       setDocuments([]);
       setLicenseTypes([]);
       setDependencies([]);
+    } finally {
+      setIsLoading(false);
     }
   };
 
@@ -77,6 +81,10 @@ export default function Dashboard() {
     loadData();
   };
 
+  if (isLoading) {
+    return <DashboardSkeleton />;
+  }
+
   return (
     <div className="space-y-6">
       {/* Top Banner: Cascading Risk Warning */}
@@ -107,10 +115,14 @@ export default function Dashboard() {
 
       {/* KPI Stats Overview */}
       <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
-        {/* Org Rolled-Up Compliance Gauge */}
-        <div className="bg-white rounded-2xl border border-gray-200/90 p-5 shadow-xs flex items-center justify-between">
+        {/* 1. Org Rolled-Up Compliance Gauge -> /compliance */}
+        <Link
+          to="/compliance"
+          className="bg-white rounded-2xl border border-gray-200/90 p-5 shadow-xs flex items-center justify-between hover:border-indigo-300 hover:shadow-md transition-all group cursor-pointer"
+          title="Open Compliance Score Engine & Detailed Analytics"
+        >
           <div>
-            <div className="text-[11px] font-bold text-gray-500 uppercase tracking-wider">
+            <div className="text-[11px] font-bold text-gray-500 uppercase tracking-wider group-hover:text-indigo-600 transition-colors">
               Org Compliance Index
             </div>
             <div className="text-2xl font-black text-gray-900 mt-1">{avgScore === null ? "—" : `${avgScore}%`}</div>
@@ -127,12 +139,16 @@ export default function Dashboard() {
               <ScoreGauge score={avgScore} size={90} strokeWidth={8} showLabel={false} />
             )}
           </div>
-        </div>
+        </Link>
 
-        {/* Active Documents */}
-        <div className="bg-white rounded-2xl border border-gray-200/90 p-5 shadow-xs flex items-center justify-between">
+        {/* 2. Active Documents -> /documents?status=VERIFIED */}
+        <Link
+          to="/documents?status=VERIFIED"
+          className="bg-white rounded-2xl border border-gray-200/90 p-5 shadow-xs flex items-center justify-between hover:border-emerald-300 hover:shadow-md transition-all group cursor-pointer"
+          title="View Verified Documents in Documents Registry"
+        >
           <div>
-            <div className="text-[11px] font-bold text-gray-500 uppercase tracking-wider">
+            <div className="text-[11px] font-bold text-gray-500 uppercase tracking-wider group-hover:text-emerald-700 transition-colors">
               Verified Certificates
             </div>
             <div className="text-2xl font-black text-emerald-600 mt-1">{verifiedCount}</div>
@@ -140,18 +156,19 @@ export default function Dashboard() {
               Tamper-evident SHA-256 hashed
             </div>
           </div>
-          <div className="p-3 bg-emerald-50 text-emerald-600 rounded-xl">
+          <div className="p-3 bg-emerald-50 text-emerald-600 rounded-xl group-hover:bg-emerald-100 transition-colors">
             <FileCheck className="w-6 h-6" />
           </div>
-        </div>
+        </Link>
 
-        {/* Pending Verification */}
+        {/* 3. Pending Verification -> /documents?status=PENDING_VERIFICATION */}
         <Link
-          to="/documents"
-          className="bg-white rounded-2xl border border-gray-200/90 p-5 shadow-xs flex items-center justify-between hover:border-indigo-300 hover:shadow-sm transition-all"
+          to="/documents?status=PENDING_VERIFICATION"
+          className="bg-white rounded-2xl border border-gray-200/90 p-5 shadow-xs flex items-center justify-between hover:border-indigo-300 hover:shadow-md transition-all group cursor-pointer"
+          title="Review Pending Document Approvals"
         >
           <div>
-            <div className="text-[11px] font-bold text-gray-500 uppercase tracking-wider">
+            <div className="text-[11px] font-bold text-gray-500 uppercase tracking-wider group-hover:text-indigo-600 transition-colors">
               Pending Approvals
             </div>
             <div className="text-2xl font-black text-indigo-600 mt-1">{pendingCount}</div>
@@ -159,15 +176,19 @@ export default function Dashboard() {
               Awaiting Org Admin sign-off
             </div>
           </div>
-          <div className="p-3 bg-indigo-50 text-indigo-600 rounded-xl">
+          <div className="p-3 bg-indigo-50 text-indigo-600 rounded-xl group-hover:bg-indigo-100 transition-colors">
             <Activity className="w-6 h-6" />
           </div>
         </Link>
 
-        {/* Expired / Cascading Risks */}
-        <div className="bg-white rounded-2xl border border-gray-200/90 p-5 shadow-xs flex items-center justify-between">
+        {/* 4. Expired / Cascading Risks -> /documents?status=EXPIRED */}
+        <Link
+          to="/documents?status=EXPIRED"
+          className="bg-white rounded-2xl border border-gray-200/90 p-5 shadow-xs flex items-center justify-between hover:border-rose-300 hover:shadow-md transition-all group cursor-pointer"
+          title="Inspect Expired / Lapsed Certificates in Documents Registry"
+        >
           <div>
-            <div className="text-[11px] font-bold text-gray-500 uppercase tracking-wider">
+            <div className="text-[11px] font-bold text-gray-500 uppercase tracking-wider group-hover:text-rose-600 transition-colors">
               Lapsed / At-Risk
             </div>
             <div className="text-2xl font-black text-red-600 mt-1">{expiredCount}</div>
@@ -175,10 +196,10 @@ export default function Dashboard() {
               Actionable renewal alerts
             </div>
           </div>
-          <div className="p-3 bg-red-50 text-red-600 rounded-xl">
+          <div className="p-3 bg-red-50 text-red-600 rounded-xl group-hover:bg-red-100 transition-colors">
             <ShieldAlert className="w-6 h-6" />
           </div>
-        </div>
+        </Link>
       </div>
 
       {/* Main Grid: Location Scoreboard & Quick Actions */}

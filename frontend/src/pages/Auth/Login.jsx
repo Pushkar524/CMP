@@ -1,6 +1,6 @@
 import React, { useState } from "react";
 import { useNavigate, Link } from "react-router-dom";
-import { Shield, Building2, UserCheck, ArrowRight, Lock } from "lucide-react";
+import { Shield, Building2, UserCheck, ArrowRight, Lock, Loader2, WifiOff, AlertCircle } from "lucide-react";
 import { useAuth } from "../../context/AuthContext";
 
 export default function Login() {
@@ -9,19 +9,45 @@ export default function Login() {
   const [email, setEmail] = useState("admin@acmeretail.com");
   const [password, setPassword] = useState("Password@123");
   const [error, setError] = useState("");
+  const [isSubmitting, setIsSubmitting] = useState(false);
 
   const handleLogin = async (e) => {
     e.preventDefault();
     setError("");
+
+    if (!navigator.onLine) {
+      setError("No internet connection. Please connect to the internet to continue.");
+      return;
+    }
+
+    setIsSubmitting(true);
     try {
       await login(email, password);
       navigate("/dashboard");
     } catch (loginError) {
-      setError(loginError.message);
+      const msg = loginError.message || "";
+      if (
+        msg.toLowerCase().includes("database") ||
+        msg.toLowerCase().includes("reach") ||
+        msg.toLowerCase().includes("prisma") ||
+        msg.toLowerCase().includes("connection") ||
+        msg.toLowerCase().includes("fetch") ||
+        msg.toLowerCase().includes("network")
+      ) {
+        setError("No internet connection. Please connect to the internet to continue.");
+      } else {
+        setError(msg);
+      }
+      setIsSubmitting(false);
     }
   };
 
   const handleQuickPersona = (user) => {
+    if (!navigator.onLine) {
+      setError("No internet connection. Please connect to the internet to continue.");
+      return;
+    }
+    setIsSubmitting(true);
     switchUser(user.id);
     setEmail(user.email);
     navigate("/dashboard");
@@ -42,7 +68,26 @@ export default function Login() {
       <div className="mt-8 sm:mx-auto sm:w-full sm:max-w-md px-4 sm:px-0">
         <div className="bg-white py-8 px-6 shadow-2xl rounded-3xl sm:px-10 border border-slate-800">
           <form className="space-y-4" onSubmit={handleLogin}>
-            {error && <div className="rounded-lg bg-red-50 px-3 py-2 text-xs text-red-700">{error}</div>}
+            {error && (
+              error.toLowerCase().includes("internet") ? (
+                <div className="rounded-2xl border border-amber-200 bg-amber-50 p-3.5 flex items-start gap-3 animate-in fade-in duration-200">
+                  <div className="p-2 bg-amber-100 text-amber-700 rounded-xl shrink-0 mt-0.5">
+                    <WifiOff className="w-4 h-4" />
+                  </div>
+                  <div>
+                    <h4 className="text-xs font-bold text-amber-900">No Internet Connection</h4>
+                    <p className="text-xs text-amber-800 mt-0.5 leading-relaxed">
+                      Please connect to the internet to continue.
+                    </p>
+                  </div>
+                </div>
+              ) : (
+                <div className="rounded-xl border border-red-200 bg-red-50 p-3 flex items-start gap-2.5 text-xs text-red-700 animate-in fade-in duration-200">
+                  <AlertCircle className="w-4 h-4 text-red-500 shrink-0 mt-0.5" />
+                  <span>{error}</span>
+                </div>
+              )
+            )}
             <div>
               <label className="block text-xs font-bold text-gray-700 uppercase tracking-wider mb-1">
                 Corporate Email Address
@@ -71,10 +116,20 @@ export default function Login() {
 
             <button
               type="submit"
-              className="w-full py-2.5 px-4 bg-indigo-600 hover:bg-indigo-700 text-white text-xs font-bold rounded-xl transition-all shadow-md flex items-center justify-center gap-1.5"
+              disabled={isSubmitting}
+              className="w-full py-2.5 px-4 bg-indigo-600 hover:bg-indigo-700 disabled:opacity-70 disabled:cursor-not-allowed text-white text-xs font-bold rounded-xl transition-all shadow-md flex items-center justify-center gap-2 cursor-pointer"
             >
-              Sign In to Platform
-              <ArrowRight className="w-4 h-4" />
+              {isSubmitting ? (
+                <>
+                  <Loader2 className="w-4 h-4 animate-spin text-white" />
+                  <span>Signing In...</span>
+                </>
+              ) : (
+                <>
+                  <span>Sign In</span>
+                  <ArrowRight className="w-4 h-4" />
+                </>
+              )}
             </button>
           </form>
 

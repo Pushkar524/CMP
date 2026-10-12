@@ -14,6 +14,7 @@ import {
 } from "lucide-react";
 import { api } from "../../services/api";
 import CreateAuditLinkModal from "../../components/Modals/CreateAuditLinkModal";
+import { AuditLinksSkeleton } from "../../components/Skeletons";
 
 export default function AuditLinks() {
   const [auditLinks, setAuditLinks] = useState([]);
@@ -21,6 +22,7 @@ export default function AuditLinks() {
   const [showCreateModal, setShowCreateModal] = useState(false);
   const [copiedToken, setCopiedToken] = useState(null);
   const [selectedLogs, setSelectedLogs] = useState(null);
+  const [isLoading, setIsLoading] = useState(true);
 
   const loadData = async () => {
     try {
@@ -34,6 +36,8 @@ export default function AuditLinks() {
       console.error("Audit links data loading failed", error);
       setAuditLinks([]);
       setDocuments([]);
+    } finally {
+      setIsLoading(false);
     }
   };
 
@@ -58,6 +62,10 @@ export default function AuditLinks() {
     setCopiedToken(token);
     setTimeout(() => setCopiedToken(null), 2000);
   };
+
+  if (isLoading) {
+    return <AuditLinksSkeleton />;
+  }
 
   return (
     <div className="space-y-6">

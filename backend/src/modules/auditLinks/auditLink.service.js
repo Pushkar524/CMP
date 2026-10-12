@@ -2,6 +2,7 @@ const prisma = require('../../config/db');
 const { BadRequestError, NotFoundError, ForbiddenError } = require('../../utils/errors');
 const bcrypt = require('bcryptjs');
 const crypto = require('crypto');
+const storageService = require('../../services/StorageService');
 
 class AuditLinkService {
   /**
@@ -85,6 +86,7 @@ class AuditLinkService {
       where: { token },
       include: {
         organization: { select: { id: true, name: true } },
+        created_by: { select: { id: true, name: true, email: true } },
         documents: {
           include: {
             document: {
@@ -94,6 +96,7 @@ class AuditLinkService {
                 status: true,
                 expiry_date: true,
                 issue_date: true,
+                sha256_hash: true,
                 license_type: { select: { id: true, name: true, code: true } },
                 location: { select: { id: true, name: true, state: true } },
               },
@@ -132,6 +135,47 @@ class AuditLinkService {
         success: success !== false,
       },
     });
+  }
+
+  /**
+   * PUBLIC: Get authorized document download stream or presigned URL
+   */
+  async getAuditDocumentDownload(token, docId, pinEntered) {
+    // 1. Verify link access
+    const link = await this.getAuditByToken(token, pinEntered);
+
+    // 2. Verify document is attached to this audit link
+    const hasDocument = link.documents.some(
+      (d) => d.document?.id === docId || d.document_id === docId
+    );
+    if (!hasDocument) {
+      throw new ForbiddenError('Document is not authorized under this audit clearance link.');
+    }
+
+    // 3. Retrieve document record
+    const doc = await prisma.document.findUnique({
+      where: { id: docId },
+    });
+    if (!doc) {
+      throw new NotFoundError('Document record not found.');
+    }
+
+    // 4. Retrieve stream or signed URL from storage
+    try {
+      const stream = await storageService.getFileStream(doc.storage_key);
+      return {
+        stream,
+        file_name: doc.file_name,
+        mime_type: doc.mime_type,
+      };
+    } catch (storageErr) {
+      const url = await storageService.getSignedDownloadUrl(doc.storage_key);
+      return {
+        url,
+        file_name: doc.file_name,
+        mime_type: doc.mime_type,
+      };
+    }
   }
 }
 

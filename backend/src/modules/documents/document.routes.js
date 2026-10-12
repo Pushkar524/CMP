@@ -30,4 +30,10 @@ router.patch(
 // Get presigned download URL for a document
 router.get('/:id/download', (req, res, next) => controller.getDownloadUrl(req, res, next));
 
+// Stream or view document file directly (for thumbnails and inline previews)
+router.get('/:id/file', (req, res, next) => controller.getDocumentFile(req, res, next));
+
+// Delete a document (ORG_ADMIN only)
+router.delete('/:id', authorizeRoles('ORG_ADMIN'), (req, res, next) => controller.deleteDocument(req, res, next));
+
 module.exports = router;

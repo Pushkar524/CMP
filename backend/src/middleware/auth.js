@@ -8,13 +8,15 @@ const prisma = require('../config/db');
 async function authenticateJWT(req, res, next) {
   try {
     const authHeader = req.headers.authorization;
-    if (!authHeader || !authHeader.startsWith('Bearer ')) {
-      throw new UnauthorizedError('Authentication token missing. Please log in.');
+    let token = null;
+    if (authHeader && authHeader.startsWith('Bearer ')) {
+      token = authHeader.split(' ')[1];
+    } else if (req.query && req.query.token) {
+      token = req.query.token;
     }
 
-    const token = authHeader.split(' ')[1];
     if (!token) {
-      throw new UnauthorizedError('Authentication token malformed.');
+      throw new UnauthorizedError('Authentication token missing. Please log in.');
     }
 
     const decoded = verifyToken(token);

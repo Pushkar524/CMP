@@ -3,6 +3,7 @@ import { BrowserRouter as Router, Routes, Route, Navigate } from "react-router-d
 import { AuthProvider, useAuth } from "./context/AuthContext";
 import { NotificationProvider } from "./context/NotificationContext";
 import Layout from "./components/Layout";
+import { WorkspaceLoader } from "./components/Skeletons";
 import Login from "./pages/Auth/Login";
 import Register from "./pages/Auth/Register";
 import Dashboard from "./pages/Dashboard/Dashboard";
@@ -16,7 +17,7 @@ function ProtectedLayout() {
   const { user, loading } = useAuth();
 
   if (loading) {
-    return <div className="flex h-screen items-center justify-center bg-slate-50 text-sm text-slate-500">Loading workspace...</div>;
+    return <WorkspaceLoader message="Loading workspace..." />;
   }
 
   return user ? <Layout /> : <Navigate to="/login" replace />;

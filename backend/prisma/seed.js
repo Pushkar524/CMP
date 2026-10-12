@@ -349,6 +349,66 @@ async function main() {
     }
   }
 
+  // 11. Seed Demo Verified Documents and Audit Data Room
+  console.log('🔗 Seeding Demo Audit Link and Documents...');
+  const tradeDoc = await prisma.document.create({
+    data: {
+      org_id: demoOrg.id,
+      location_id: blrStore.id,
+      license_type_id: tradeLicense.id,
+      file_name: 'bbmp_trade_license_2026.pdf',
+      storage_key: `documents/${demoOrg.id}/bbmp_trade_license_2026.pdf`,
+      file_size: 245100,
+      mime_type: 'application/pdf',
+      sha256_hash: 'e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855',
+      issue_date: new Date('2026-01-15'),
+      expiry_date: new Date('2027-01-14'),
+      status: 'VERIFIED',
+      uploaded_by_id: orgAdmin.id,
+      verified_by_id: orgAdmin.id,
+      verified_at: new Date(),
+    },
+  });
+
+  const fireDoc = await prisma.document.create({
+    data: {
+      org_id: demoOrg.id,
+      location_id: blrStore.id,
+      license_type_id: fireNoc.id,
+      file_name: 'karnataka_fire_noc_blr.pdf',
+      storage_key: `documents/${demoOrg.id}/karnataka_fire_noc_blr.pdf`,
+      file_size: 512300,
+      mime_type: 'application/pdf',
+      sha256_hash: '8f434346648f6b96df89dda901c5176b10a6d83961dd3c1ac88b59b2dc327aa4',
+      issue_date: new Date('2026-02-01'),
+      expiry_date: new Date('2027-01-31'),
+      status: 'VERIFIED',
+      uploaded_by_id: orgAdmin.id,
+      verified_by_id: orgAdmin.id,
+      verified_at: new Date(),
+    },
+  });
+
+  const demoPinHash = await bcrypt.hash('1234', 10);
+  await prisma.auditLink.create({
+    data: {
+      org_id: demoOrg.id,
+      created_by_id: orgAdmin.id,
+      token: 'audit-blr-bbmp-2026',
+      pin_hash: demoPinHash,
+      title: 'BBMP Annual Compliance Review - Indiranagar Store',
+      notes: 'Only Municipal Trade License and Fire NOC shared for Inspector Sharma.',
+      expires_at: new Date(Date.now() + 30 * 24 * 60 * 60 * 1000),
+      is_active: true,
+      documents: {
+        create: [
+          { document_id: tradeDoc.id },
+          { document_id: fireDoc.id },
+        ],
+      },
+    },
+  });
+
   console.log('\n✅ Database Seed Completed Successfully!');
   console.log('----------------------------------------------------');
   console.log('Organization:  Acme Retail India Pvt Ltd');

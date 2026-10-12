@@ -30,7 +30,12 @@ async function fetchAPI(endpoint, options = {}) {
     credentials: 'include', // send cookies if needed
   };
 
-  const response = await fetch(url, config);
+  let response;
+  try {
+    response = await fetch(url, config);
+  } catch {
+    throw new Error('No internet connection. Please connect to the internet to continue.');
+  }
 
   // Try to parse JSON, fall back to text
   let data;
@@ -41,11 +46,28 @@ async function fetchAPI(endpoint, options = {}) {
   }
 
   if (!response.ok) {
-    const message = typeof data === 'object' && data.message
+    let message = typeof data === 'object' && data.message
       ? data.message
       : typeof data === 'string' && data.length > 0
         ? data
         : `API error: ${response.status}`;
+
+    const lower = String(message).toLowerCase();
+    if (
+      response.status === 503 ||
+      lower.includes("can't reach database server") ||
+      lower.includes("can't reach") ||
+      lower.includes("database server") ||
+      lower.includes("prisma") ||
+      lower.includes("connection refused") ||
+      lower.includes("econnrefused") ||
+      lower.includes("etimedout") ||
+      lower.includes("enotfound") ||
+      lower.includes("failed to fetch")
+    ) {
+      message = 'No internet connection. Please connect to the internet to continue.';
+    }
+
     throw new Error(message);
   }
 
@@ -280,6 +302,25 @@ export const documents = {
     // Create a new document version (renewal) via upload
     return await documents.uploadDocument(renewedData, file);
   },
+
+  // Delete a document
+  deleteDocument: async (docId) => {
+    return await fetchAPI(`/api/documents/${docId}`, {
+      method: 'DELETE',
+    });
+  },
+
+  // Get inline document file preview URL
+  getDocumentFileUrl: (docId) => {
+    const token = localStorage.getItem('sclip_auth_token') || '';
+    return `/api/documents/${docId}/file?token=${encodeURIComponent(token)}`;
+  },
+
+  // Get presigned document download URL
+  getDocumentDownloadUrl: async (docId) => {
+    const data = await fetchAPI(`/api/documents/${docId}/download`);
+    return data.url;
+  },
 };
 
 // ============================================================
@@ -349,15 +390,21 @@ export const auditLinks = {
     });
   },
 
-  getAuditByToken: async (token) => {
-    return await fetchAPI(`/api/audit-links/by-token/${token}`);
+  getAuditByToken: async (token, pin = '') => {
+    const query = pin ? `?pin=${encodeURIComponent(pin)}` : '';
+    return await fetchAPI(`/api/audit-links/by-token/${token}${query}`);
   },
 
-  recordAuditAccess: async (token, pinEntered) => {
+  recordAuditAccess: async (token, payload = {}) => {
     return await fetchAPI(`/api/audit-links/access/${token}`, {
       method: 'POST',
-      body: JSON.stringify({ pinEntered }),
+      body: JSON.stringify(typeof payload === 'object' ? payload : { pinEntered: payload }),
     });
+  },
+
+  getAuditDocumentDownloadUrl: (token, docId, pin = '') => {
+    const query = pin ? `?pin=${encodeURIComponent(pin)}` : '';
+    return `${API_BASE}/api/audit-links/by-token/${token}/documents/${docId}/download${query}`;
   },
 };
 
@@ -454,6 +501,14 @@ export const api = {
     return result;
   },
 
+  deleteDocument: async (docId) => {
+    const result = await documents.deleteDocument(docId);
+    return result;
+  },
+
+  getDocumentFileUrl: documents.getDocumentFileUrl,
+  getDocumentDownloadUrl: documents.getDocumentDownloadUrl,
+
   // --- Compliance Score Engine ---
   calculateLocationScore: async (locationId) => {
     const result = await compliance.calculateLocationScore(locationId);
@@ -480,6 +535,10 @@ export const api = {
     return result;
   },
 
+  getAuditByToken: auditLinks.getAuditByToken,
+  recordAuditAccess: auditLinks.recordAuditAccess,
+  getAuditDocumentDownloadUrl: auditLinks.getAuditDocumentDownloadUrl,
+
   // --- Notifications ---
   getNotifications: async () => {
     const data = await notifications.getNotifications();
@@ -500,3 +559,5 @@ export const api = {
   // --- Utility ---
   computeSHA256,
 };
+
+export default api;

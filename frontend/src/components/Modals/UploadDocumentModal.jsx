@@ -1,19 +1,165 @@
-import React, { useState } from "react";
-import { X, UploadCloud, Shield, Check, FileText } from "lucide-react";
+import React, { useState, useEffect } from "react";
+import { X, UploadCloud, Shield, Check, FileText, Loader2, Clock, Calendar } from "lucide-react";
 import { computeSHA256 } from "../../services/api";
 
 export default function UploadDocumentModal({ isOpen, onClose, onUpload, locations = [], licenseTypes = [] }) {
+  const todayStr = new Date().toISOString().split("T")[0];
+  const currentYear = new Date().getFullYear();
+  const minIssueYear = currentYear - 60; // 50 to 60 years ago (e.g. 1966)
+  const maxIssueYear = currentYear + 10;
+  const maxExpiryYear = currentYear + 60; // 50 to 60 years ahead (e.g. 2086)
+
+  const minIssueDate = `${minIssueYear}-01-01`;
+  const maxIssueDate = `${maxIssueYear}-12-31`;
+
   const [file, setFile] = useState(null);
   const [fileName, setFileName] = useState("");
   const [licenseTypeId, setLicenseTypeId] = useState(licenseTypes[0]?.id || "");
   const [locationId, setLocationId] = useState("");
   const [isOrgWide, setIsOrgWide] = useState(false);
-  const [issueDate, setIssueDate] = useState("");
+  const [issueDate, setIssueDate] = useState(todayStr);
   const [expiryDate, setExpiryDate] = useState("");
+  const [validityYears, setValidityYears] = useState("1");
+  const [validityMonths, setValidityMonths] = useState("0");
   const [isLifetimeValid, setIsLifetimeValid] = useState(false);
   const [shaHash, setShaHash] = useState("");
   const [isHashing, setIsHashing] = useState(false);
+  const [isUploading, setIsUploading] = useState(false);
   const [error, setError] = useState("");
+
+  const minExpiryDate = issueDate || minIssueDate;
+  const maxExpiryDate = `${maxExpiryYear}-12-31`;
+
+  const yearOptions = Array.from({ length: 61 }, (_, i) => i); // 0 to 60 years
+  const monthOptions = Array.from({ length: 12 }, (_, i) => i); // 0 to 11 months
+
+  // Calculate expiry date string given a base issue date and a number of months
+  const addMonthsToDate = (startStr, months) => {
+    if (!startStr || !months) return "";
+    const numMonths = Number(months);
+    if (isNaN(numMonths) || numMonths <= 0) return "";
+    const parts = startStr.split("-").map(Number);
+    if (parts.length !== 3) return "";
+    const [y, m, d] = parts;
+    const targetDate = new Date(y, m - 1 + numMonths, d);
+    const resY = targetDate.getFullYear();
+    const resM = String(targetDate.getMonth() + 1).padStart(2, "0");
+    const resD = String(targetDate.getDate()).padStart(2, "0");
+    return `${resY}-${resM}-${resD}`;
+  };
+
+  // Sync default validity or lifetime flag whenever license type changes
+  useEffect(() => {
+    if (licenseTypeId && licenseTypes.length > 0) {
+      const selected = licenseTypes.find((t) => t.id === licenseTypeId);
+      if (selected?.is_lifetime_valid) {
+        setIsLifetimeValid(true);
+        setExpiryDate("");
+        setValidityYears("0");
+        setValidityMonths("0");
+      } else if (selected?.default_validity_months) {
+        const defMonths = selected.default_validity_months;
+        const base = issueDate || todayStr;
+        if (!issueDate) setIssueDate(base);
+        const y = Math.floor(defMonths / 12);
+        const m = defMonths % 12;
+        setValidityYears(String(y));
+        setValidityMonths(String(m));
+        const calculated = addMonthsToDate(base, defMonths);
+        if (calculated) setExpiryDate(calculated);
+      }
+    }
+  }, [licenseTypeId]);
+
+  const handleIssueDateChange = (newIssueDate) => {
+    setIssueDate(newIssueDate);
+    if (newIssueDate && !isLifetimeValid) {
+      const totalMonths = (Number(validityYears) || 0) * 12 + (Number(validityMonths) || 0);
+      if (totalMonths > 0) {
+        const calculated = addMonthsToDate(newIssueDate, totalMonths);
+        if (calculated) setExpiryDate(calculated);
+      }
+    }
+  };
+
+  const handleDurationChange = (newYears, newMonths) => {
+    const y = Number(newYears) || 0;
+    const m = Number(newMonths) || 0;
+    setValidityYears(String(y));
+    setValidityMonths(String(m));
+    const totalMonths = (y * 12) + m;
+    const baseIssue = issueDate || todayStr;
+    if (!issueDate) setIssueDate(baseIssue);
+    if (totalMonths > 0) {
+      const calculated = addMonthsToDate(baseIssue, totalMonths);
+      if (calculated) setExpiryDate(calculated);
+    }
+  };
+
+  const handleExpiryDateChange = (newExpiryDate) => {
+    setExpiryDate(newExpiryDate);
+    if (issueDate && newExpiryDate) {
+      const start = new Date(issueDate);
+      const end = new Date(newExpiryDate);
+      const diffDays = Math.round((end - start) / (1000 * 60 * 60 * 24));
+      if (diffDays > 0) {
+        const totalMonths = Math.round(diffDays / 30.4375);
+        const y = Math.floor(totalMonths / 12);
+        const m = totalMonths % 12;
+        setValidityYears(String(y));
+        setValidityMonths(String(m));
+      }
+    }
+  };
+
+  const getValiditySummary = () => {
+    if (isLifetimeValid) {
+      return { text: "Permanent registration (No expiration required)", color: "text-emerald-700 bg-emerald-50 border border-emerald-200" };
+    }
+    if (!issueDate || !expiryDate) return null;
+    const start = new Date(issueDate);
+    const end = new Date(expiryDate);
+    const now = new Date();
+    if (end < start) {
+      return { text: "Expiry date cannot be before issue date", color: "text-red-700 bg-red-50 border border-red-200", isError: true };
+    }
+    const totalDays = Math.round((end - start) / (1000 * 60 * 60 * 24));
+    const totalMonths = Math.max(1, Math.round(totalDays / 30.4375));
+    const totalYears = +(totalDays / 365.25).toFixed(1);
+
+    let durationLabel = "";
+    if (totalMonths < 12) {
+      durationLabel = `${totalMonths} ${totalMonths === 1 ? 'Month' : 'Months'}`;
+    } else if (totalMonths % 12 === 0) {
+      const y = totalMonths / 12;
+      durationLabel = `${y} ${y === 1 ? 'Year' : 'Years'}`;
+    } else {
+      durationLabel = `${totalYears} Years (${totalMonths} Months)`;
+    }
+
+    const remainingDays = Math.round((end - now) / (1000 * 60 * 60 * 24));
+    let remainingLabel = "";
+    if (remainingDays < 0) {
+      remainingLabel = `Expired ${Math.abs(remainingDays)} days ago`;
+    } else if (remainingDays === 0) {
+      remainingLabel = "Expires today";
+    } else if (remainingDays <= 30) {
+      remainingLabel = `Expires in ${remainingDays} days`;
+    } else if (remainingDays < 365) {
+      const remMos = Math.max(1, Math.round(remainingDays / 30.4375));
+      remainingLabel = `~${remMos} ${remMos === 1 ? 'month' : 'months'} remaining till expiry`;
+    } else {
+      const remYears = +(remainingDays / 365.25).toFixed(1);
+      remainingLabel = `~${remYears} years remaining till expiry`;
+    }
+
+    return {
+      text: `Validity: ${durationLabel} (${remainingLabel})`,
+      color: remainingDays < 0 ? "text-amber-800 bg-amber-50 border border-amber-200" : "text-indigo-800 bg-indigo-50 border border-indigo-200",
+    };
+  };
+
+  const validitySummary = getValiditySummary();
 
   if (!isOpen) return null;
 
@@ -38,7 +184,37 @@ export default function UploadDocumentModal({ isOpen, onClose, onUpload, locatio
   const handleSubmit = async (e) => {
     e.preventDefault();
     setError("");
+    setIsUploading(true);
     const lt = licenseTypes.find(t => t.id === licenseTypeId);
+
+    if (issueDate) {
+      const issueYear = parseInt(issueDate.split("-")[0], 10);
+      if (isNaN(issueYear) || issueYear < minIssueYear || issueYear > maxIssueYear) {
+        setError(`Please enter a valid issue date (year must be between ${minIssueYear} and ${maxIssueYear}).`);
+        setIsUploading(false);
+        return;
+      }
+    }
+
+    if (!isLifetimeValid) {
+      if (!expiryDate) {
+        setError("Please specify an expiry date or check 'Lifetime'.");
+        setIsUploading(false);
+        return;
+      }
+      const expiryYear = parseInt(expiryDate.split("-")[0], 10);
+      if (isNaN(expiryYear) || expiryYear < minIssueYear || expiryYear > maxExpiryYear) {
+        setError(`Expiry date year must be between ${minIssueYear} and ${maxExpiryYear}.`);
+        setIsUploading(false);
+        return;
+      }
+      if (issueDate && expiryDate < issueDate) {
+        setError("Expiry date cannot be earlier than the issue date.");
+        setIsUploading(false);
+        return;
+      }
+    }
+
     try {
       await onUpload({
         license_type_id: licenseTypeId,
@@ -46,13 +222,15 @@ export default function UploadDocumentModal({ isOpen, onClose, onUpload, locatio
         license_name: lt?.name || "Regulatory License",
         location_id: isOrgWide ? null : locationId,
         file_name: fileName || "document.pdf",
-        issue_date: issueDate || new Date().toISOString().split("T")[0],
+        issue_date: issueDate || todayStr,
         expiry_date: isLifetimeValid ? null : expiryDate,
         is_lifetime_valid: isLifetimeValid
       }, file);
       onClose();
     } catch (uploadError) {
       setError(uploadError.message || "Document upload failed. Please try again.");
+    } finally {
+      setIsUploading(false);
     }
   };
 
@@ -173,42 +351,123 @@ export default function UploadDocumentModal({ isOpen, onClose, onUpload, locatio
           </div>
 
           {/* Validity & Dates */}
-          <div className="grid grid-cols-2 gap-3">
-            <div>
-              <label className="block text-xs font-bold text-gray-700 uppercase tracking-wider mb-1">
-                Issue Date
-              </label>
-              <input
-                type="date"
-                value={issueDate}
-                onChange={(e) => setIssueDate(e.target.value)}
-                className="w-full text-sm border border-gray-300 rounded-lg px-3 py-2 focus:ring-2 focus:ring-indigo-500 focus:outline-hidden"
-              />
-            </div>
-            <div>
-              <div className="flex items-center justify-between mb-1">
-                <label className="text-xs font-bold text-gray-700 uppercase tracking-wider">
-                  Expiry Date
+          <div className="bg-slate-50/70 border border-gray-200/90 rounded-xl p-3.5 space-y-3">
+            <div className="grid grid-cols-2 gap-3">
+              <div>
+                <label className="block text-xs font-bold text-gray-700 uppercase tracking-wider mb-1">
+                  Issue Date
                 </label>
-                <label className="flex items-center gap-1 text-[11px] text-gray-500 cursor-pointer">
-                  <input
-                    type="checkbox"
-                    checked={isLifetimeValid}
-                    onChange={(e) => setIsLifetimeValid(e.target.checked)}
-                    className="rounded text-indigo-600 focus:ring-indigo-500"
-                  />
-                  Lifetime
-                </label>
+                <input
+                  type="date"
+                  value={issueDate}
+                  min={minIssueDate}
+                  max={maxIssueDate}
+                  onChange={(e) => handleIssueDateChange(e.target.value)}
+                  className="w-full text-sm border border-gray-300 rounded-lg px-3 py-2 bg-white focus:ring-2 focus:ring-indigo-500 focus:outline-hidden"
+                />
+                <span className="text-[10px] text-gray-400 mt-1 block">
+                  Valid Range: {minIssueYear} – {maxIssueYear}
+                </span>
               </div>
-              <input
-                type="date"
-                disabled={isLifetimeValid}
-                value={isLifetimeValid ? "" : expiryDate}
-                onChange={(e) => setExpiryDate(e.target.value)}
-                className="w-full text-sm border border-gray-300 rounded-lg px-3 py-2 focus:ring-2 focus:ring-indigo-500 focus:outline-hidden disabled:bg-gray-100 disabled:text-gray-400"
-                required={!isLifetimeValid}
-              />
+              <div>
+                <div className="flex items-center justify-between mb-1">
+                  <label className="text-xs font-bold text-gray-700 uppercase tracking-wider">
+                    Expiry Date
+                  </label>
+                  <label className="flex items-center gap-1 text-[11px] text-gray-600 cursor-pointer select-none">
+                    <input
+                      type="checkbox"
+                      checked={isLifetimeValid}
+                      onChange={(e) => {
+                        const checked = e.target.checked;
+                        setIsLifetimeValid(checked);
+                        if (checked) {
+                          setExpiryDate("");
+                          setValidityYears("0");
+                          setValidityMonths("0");
+                        }
+                      }}
+                      className="rounded text-indigo-600 focus:ring-indigo-500"
+                    />
+                    Lifetime
+                  </label>
+                </div>
+                <input
+                  type="date"
+                  disabled={isLifetimeValid}
+                  value={isLifetimeValid ? "" : expiryDate}
+                  min={minExpiryDate}
+                  max={maxExpiryDate}
+                  onChange={(e) => handleExpiryDateChange(e.target.value)}
+                  className="w-full text-sm border border-gray-300 rounded-lg px-3 py-2 bg-white focus:ring-2 focus:ring-indigo-500 focus:outline-hidden disabled:bg-gray-100 disabled:text-gray-400"
+                  required={!isLifetimeValid}
+                />
+                <span className="text-[10px] text-gray-400 mt-1 block">
+                  {isLifetimeValid ? "No expiry needed (Permanent)" : `Valid Range: ${issueDate || minIssueDate} – ${maxExpiryYear}`}
+                </span>
+              </div>
             </div>
+
+            {/* Validity Duration: 2 Lists for Years and Months */}
+            {!isLifetimeValid && (
+              <div className="pt-2 border-t border-gray-200/60 space-y-2.5">
+                <div className="flex items-center justify-between">
+                  <span className="text-[11px] font-semibold text-gray-700 flex items-center gap-1.5">
+                    <Clock className="w-3.5 h-3.5 text-indigo-600" />
+                    Validity Period (Select Years & Months):
+                  </span>
+                  <span className="text-[10px] text-gray-400">
+                    Auto-calculates expiry date
+                  </span>
+                </div>
+
+                <div className="grid grid-cols-2 gap-3">
+                  {/* Years List */}
+                  <div>
+                    <label className="block text-[11px] font-bold text-gray-600 uppercase tracking-wider mb-1">
+                      Years
+                    </label>
+                    <select
+                      value={validityYears}
+                      onChange={(e) => handleDurationChange(e.target.value, validityMonths)}
+                      className="w-full text-sm border border-gray-300 rounded-lg px-3 py-2 bg-white focus:ring-2 focus:ring-indigo-500 focus:outline-hidden font-medium text-gray-800"
+                    >
+                      {yearOptions.map((y) => (
+                        <option key={y} value={y}>
+                          {y === 0 ? "0 Years" : y === 1 ? "1 Year" : `${y} Years`}
+                        </option>
+                      ))}
+                    </select>
+                  </div>
+
+                  {/* Months List */}
+                  <div>
+                    <label className="block text-[11px] font-bold text-gray-600 uppercase tracking-wider mb-1">
+                      Months
+                    </label>
+                    <select
+                      value={validityMonths}
+                      onChange={(e) => handleDurationChange(validityYears, e.target.value)}
+                      className="w-full text-sm border border-gray-300 rounded-lg px-3 py-2 bg-white focus:ring-2 focus:ring-indigo-500 focus:outline-hidden font-medium text-gray-800"
+                    >
+                      {monthOptions.map((m) => (
+                        <option key={m} value={m}>
+                          {m === 0 ? "0 Months" : m === 1 ? "1 Month" : `${m} Months`}
+                        </option>
+                      ))}
+                    </select>
+                  </div>
+                </div>
+
+                {/* Live Validity Summary badge */}
+                {validitySummary && (
+                  <div className={`px-2.5 py-1.5 rounded-lg text-xs font-medium flex items-center justify-between ${validitySummary.color}`}>
+                    <span>{validitySummary.text}</span>
+                    <span className="text-[10px] opacity-80">Auto-synced</span>
+                  </div>
+                )}
+              </div>
+            )}
           </div>
 
           <div className="pt-4 border-t border-gray-100 flex items-center justify-end gap-3">
@@ -221,11 +480,20 @@ export default function UploadDocumentModal({ isOpen, onClose, onUpload, locatio
             </button>
             <button
               type="submit"
-              disabled={isHashing}
-              className="px-5 py-2 text-sm font-semibold text-white bg-indigo-600 hover:bg-indigo-700 rounded-lg shadow-sm transition-colors flex items-center gap-1.5"
+              disabled={isHashing || isUploading}
+              className="px-5 py-2 text-sm font-semibold text-white bg-indigo-600 hover:bg-indigo-700 disabled:opacity-60 disabled:cursor-not-allowed rounded-lg shadow-sm transition-colors flex items-center gap-1.5 cursor-pointer"
             >
-              <UploadCloud className="w-4 h-4" />
-              Upload & Hash Certificate
+              {isUploading ? (
+                <>
+                  <Loader2 className="w-4 h-4 animate-spin text-white" />
+                  <span>Uploading Certificate...</span>
+                </>
+              ) : (
+                <>
+                  <UploadCloud className="w-4 h-4" />
+                  <span>Upload & Hash Certificate</span>
+                </>
+              )}
             </button>
           </div>
         </form>

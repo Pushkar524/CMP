@@ -11,22 +11,25 @@ import {
   Building2,
   UserCheck,
   ChevronDown,
-  ExternalLink
+  Settings
 } from "lucide-react";
 import { useAuth } from "../context/AuthContext";
 import { useNotifications } from "../context/NotificationContext";
 import NotificationModal from "./NotificationModal";
+import SettingsModal from "./Modals/SettingsModal";
+import { WorkspaceLoader } from "./Skeletons";
 
 export default function Layout() {
   const location = useLocation();
   const { user, allUsers, currentOrg, organizations, switchUser, switchOrg, isOrgAdmin, isLocationManager } = useAuth();
   const { unreadCount } = useNotifications();
   const [showNotifModal, setShowNotifModal] = useState(false);
+  const [showSettingsModal, setShowSettingsModal] = useState(false);
   const [showRoleMenu, setShowRoleMenu] = useState(false);
   const [showOrgMenu, setShowOrgMenu] = useState(false);
 
   if (!user || !currentOrg) {
-    return <div className="flex h-screen items-center justify-center bg-slate-50 text-sm text-slate-500">Loading workspace...</div>;
+    return <WorkspaceLoader message="Loading workspace profile..." />;
   }
 
   const navItems = [
@@ -166,13 +169,24 @@ export default function Layout() {
             )}
           </div>
 
-          <Link
-            to="/login"
-            className="mt-3 flex items-center justify-center gap-1.5 px-3 py-1.5 text-xs font-semibold text-slate-400 hover:text-slate-100 hover:bg-slate-800 rounded-lg transition-colors"
-          >
-            <LogOut className="w-3.5 h-3.5" />
-            <span className="sidebar-signout-label">Sign Out</span>
-          </Link>
+          <div className="mt-3 pt-2.5 border-t border-slate-800/80 flex items-center justify-between gap-2">
+            <button
+              onClick={() => setShowSettingsModal(true)}
+              className="flex-1 flex items-center justify-center gap-1.5 px-2.5 py-1.5 text-xs font-semibold text-slate-400 hover:text-slate-100 hover:bg-slate-800 rounded-lg transition-colors cursor-pointer"
+              title="Platform Settings & Rules"
+            >
+              <Settings className="w-3.5 h-3.5 text-indigo-400" />
+              <span>Settings</span>
+            </button>
+            <Link
+              to="/login"
+              className="flex-1 flex items-center justify-center gap-1.5 px-2.5 py-1.5 text-xs font-semibold text-slate-400 hover:text-rose-400 hover:bg-slate-800 rounded-lg transition-colors"
+              title="Sign Out"
+            >
+              <LogOut className="w-3.5 h-3.5" />
+              <span className="sidebar-signout-label">Sign Out</span>
+            </Link>
+          </div>
         </div>
       </aside>
 
@@ -190,11 +204,20 @@ export default function Layout() {
             </span>
           </div>
 
-          <div className="flex items-center gap-4">
+          <div className="flex items-center gap-3">
+            {/* Settings Quick Access */}
+            <button
+              onClick={() => setShowSettingsModal(true)}
+              className="p-2 rounded-lg text-gray-500 hover:text-indigo-600 hover:bg-indigo-50 transition-colors cursor-pointer"
+              title="Platform Settings & Rules"
+            >
+              <Settings className="w-5 h-5" />
+            </button>
+
             {/* Notification Bell */}
             <button
               onClick={() => setShowNotifModal(true)}
-              className="relative p-2 rounded-lg text-gray-500 hover:text-gray-900 hover:bg-gray-100 transition-colors"
+              className="relative p-2 rounded-lg text-gray-500 hover:text-gray-900 hover:bg-gray-100 transition-colors cursor-pointer"
               title="Compliance Sweeps & Preferences"
             >
               <Bell className="w-5 h-5" />
@@ -204,17 +227,6 @@ export default function Layout() {
                 </span>
               )}
             </button>
-
-            {/* Quick Demo Inspector Link */}
-            <Link
-              to="/audit/audit-blr-bbmp-2026"
-              target="_blank"
-              rel="noreferrer"
-              className="app-header-inspector flex items-center gap-1.5 px-3 py-1.5 bg-indigo-50 hover:bg-indigo-100 text-indigo-700 text-xs font-bold rounded-lg border border-indigo-200 transition-colors"
-            >
-              <ExternalLink className="w-3.5 h-3.5" />
-              Test Inspector Portal
-            </Link>
           </div>
         </header>
 
@@ -226,6 +238,9 @@ export default function Layout() {
 
       {/* Notification Preferences & Alerts Modal */}
       <NotificationModal isOpen={showNotifModal} onClose={() => setShowNotifModal(false)} />
+
+      {/* Enterprise Platform Settings Modal */}
+      <SettingsModal isOpen={showSettingsModal} onClose={() => setShowSettingsModal(false)} />
     </div>
   );
 }

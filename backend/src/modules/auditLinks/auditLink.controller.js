@@ -44,6 +44,25 @@ class AuditLinkController {
       res.status(200).json({ success: true });
     } catch (err) { next(err); }
   }
+
+  // PUBLIC — download document within authorized audit data room
+  async downloadAuditDocument(req, res, next) {
+    try {
+      const { token, docId } = req.params;
+      const { pin } = req.query;
+      const result = await auditLinkService.getAuditDocumentDownload(token, docId, pin);
+
+      if (result.stream) {
+        res.setHeader('Content-Disposition', `attachment; filename="${result.file_name}"`);
+        res.setHeader('Content-Type', result.mime_type || 'application/octet-stream');
+        result.stream.pipe(res);
+      } else if (result.url) {
+        res.redirect(result.url);
+      } else {
+        res.status(404).json({ success: false, message: 'Document file not found' });
+      }
+    } catch (err) { next(err); }
+  }
 }
 
 module.exports = new AuditLinkController();

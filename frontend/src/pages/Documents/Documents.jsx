@@ -1,4 +1,5 @@
 import React, { useState, useEffect } from "react";
+import { useSearchParams } from "react-router-dom";
 import {
   Upload,
   CheckCircle,
@@ -12,26 +13,35 @@ import {
   RefreshCw,
   Building2,
   MapPin,
-  CheckCheck
+  CheckCheck,
+  MoreVertical,
+  Trash2
 } from "lucide-react";
 import { api } from "../../services/api";
 import { useAuth } from "../../context/AuthContext";
 import UploadDocumentModal from "../../components/Modals/UploadDocumentModal";
 import VerifyDocumentModal from "../../components/Modals/VerifyDocumentModal";
 import VersionHistoryModal from "../../components/Modals/VersionHistoryModal";
+import DeleteDocumentModal from "../../components/Modals/DeleteDocumentModal";
+import { DocumentsSkeleton } from "../../components/Skeletons";
 
 export default function Documents() {
   const { isOrgAdmin, canAccessLocation } = useAuth();
+  const [searchParams, setSearchParams] = useSearchParams();
   const [documents, setDocuments] = useState([]);
   const [locations, setLocations] = useState([]);
   const [licenseTypes, setLicenseTypes] = useState([]);
   const [search, setSearch] = useState("");
-  const [statusFilter, setStatusFilter] = useState("ALL");
+  const [statusFilter, setStatusFilter] = useState(searchParams.get("status") || "ALL");
   const [scopeFilter, setScopeFilter] = useState("ALL"); // ALL, ORG_WIDE, LOCATION
   const [showUploadModal, setShowUploadModal] = useState(false);
   const [verifyTarget, setVerifyTarget] = useState(null);
   const [historyTarget, setHistoryTarget] = useState(null);
+  const [deleteTarget, setDeleteTarget] = useState(null);
+  const [activeActionMenuId, setActiveActionMenuId] = useState(null);
+  const [isDeleting, setIsDeleting] = useState(false);
   const [verifiedHashIds, setVerifiedHashIds] = useState([]);
+  const [isLoading, setIsLoading] = useState(true);
 
   const loadData = async () => {
     try {
@@ -48,12 +58,32 @@ export default function Documents() {
       setDocuments([]);
       setLocations([]);
       setLicenseTypes([]);
+    } finally {
+      setIsLoading(false);
     }
   };
 
   useEffect(() => {
     loadData();
   }, []);
+
+  useEffect(() => {
+    const qStatus = searchParams.get("status");
+    if (qStatus) {
+      setStatusFilter(qStatus);
+    }
+  }, [searchParams]);
+
+  const handleStatusFilterChange = (newStatus) => {
+    setStatusFilter(newStatus);
+    const nextParams = new URLSearchParams(searchParams);
+    if (newStatus === "ALL") {
+      nextParams.delete("status");
+    } else {
+      nextParams.set("status", newStatus);
+    }
+    setSearchParams(nextParams, { replace: true });
+  };
 
   const handleUpload = async (docData, file) => {
     await api.uploadDocument(docData, file);
@@ -72,6 +102,31 @@ export default function Documents() {
     }, 200);
   };
 
+  useEffect(() => {
+    const handleClickOutside = (e) => {
+      if (!e.target.closest(".action-menu-dropdown-container")) {
+        setActiveActionMenuId(null);
+      }
+    };
+    document.addEventListener("mousedown", handleClickOutside);
+    return () => document.removeEventListener("mousedown", handleClickOutside);
+  }, []);
+
+  const handleDelete = async (docId) => {
+    try {
+      setIsDeleting(true);
+      await api.deleteDocument(docId);
+      setDeleteTarget(null);
+      setActiveActionMenuId(null);
+      await loadData();
+    } catch (error) {
+      console.error("Failed to delete document:", error);
+      alert(error.message || "Failed to delete document.");
+    } finally {
+      setIsDeleting(false);
+    }
+  };
+
   const filteredDocs = documents
     .filter((d) => d.location_id === null || canAccessLocation(d.location_id))
     .filter((d) => {
@@ -88,6 +143,10 @@ export default function Documents() {
 
       return matchSearch && matchStatus && matchScope;
     });
+
+  if (isLoading) {
+    return <DocumentsSkeleton />;
+  }
 
   return (
     <div className="space-y-6">
@@ -155,7 +214,7 @@ export default function Documents() {
             {/* Status Filter */}
             <select
               value={statusFilter}
-              onChange={(e) => setStatusFilter(e.target.value)}
+              onChange={(e) => handleStatusFilterChange(e.target.value)}
               className="text-xs border border-gray-300 rounded-lg px-3 py-1.5 bg-white focus:ring-2 focus:ring-indigo-500 focus:outline-hidden"
             >
               <option value="ALL">All Statuses</option>
@@ -183,7 +242,7 @@ export default function Documents() {
               </tr>
             </thead>
             <tbody className="divide-y divide-gray-100 text-xs">
-              {filteredDocs.map((doc) => {
+              {filteredDocs.map((doc, idx) => {
                 const loc = locations.find((l) => l.id === doc.location_id);
                 const isIntegrityChecked = verifiedHashIds.includes(doc.id);
 
@@ -273,8 +332,8 @@ export default function Documents() {
                     </td>
 
                     {/* Actions */}
-                    <td className="py-3.5 px-5 text-right">
-                      <div className="flex items-center justify-end gap-2">
+                    <td className="py-3.5 px-5 text-right relative">
+                      <div className="flex items-center justify-end gap-1.5">
                         {/* Verify button for Org Admin */}
                         {isOrgAdmin && doc.status === "PENDING_VERIFICATION" && (
                           <button
@@ -285,7 +344,7 @@ export default function Documents() {
                           </button>
                         )}
 
-                        {/* Version History */}
+                        {/* Quick History Button */}
                         <button
                           onClick={() => setHistoryTarget(doc)}
                           title="View Renewal & Version Chain"
@@ -293,6 +352,77 @@ export default function Documents() {
                         >
                           <History className="w-4 h-4" />
                         </button>
+
+                        {/* Action Toggle Button & Dropdown */}
+                        <div className="relative inline-block text-left action-menu-dropdown-container">
+                          <button
+                            onClick={() =>
+                              setActiveActionMenuId((prev) => (prev === doc.id ? null : doc.id))
+                            }
+                            title="More Actions"
+                            aria-label="Toggle Document Actions"
+                            className={`p-1.5 rounded-lg transition-all border ${
+                              activeActionMenuId === doc.id
+                                ? "bg-indigo-50 text-indigo-600 border-indigo-200 shadow-2xs ring-1 ring-indigo-200"
+                                : "text-gray-500 hover:text-gray-800 hover:bg-gray-100 border-transparent"
+                            }`}
+                          >
+                            <MoreVertical className="w-4 h-4" />
+                          </button>
+
+                          {/* Action Dropdown Menu when toggled */}
+                          {activeActionMenuId === doc.id && (
+                            <div
+                              className={`absolute right-0 ${
+                                idx >= filteredDocs.length - 2 && filteredDocs.length > 2
+                                  ? "bottom-full mb-1.5"
+                                  : "top-full mt-1.5"
+                              } w-48 bg-white rounded-xl shadow-xl border border-gray-200 py-1.5 z-50 text-left animate-in fade-in zoom-in-95 duration-150`}
+                            >
+                              <div className="px-3 py-1 text-[10px] font-bold uppercase tracking-wider text-gray-400 border-b border-gray-100">
+                                Actions
+                              </div>
+
+                              <button
+                                onClick={() => {
+                                  setActiveActionMenuId(null);
+                                  setHistoryTarget(doc);
+                                }}
+                                className="w-full flex items-center gap-2.5 px-3 py-2 text-xs text-gray-700 hover:bg-indigo-50/70 hover:text-indigo-600 transition-colors"
+                              >
+                                <History className="w-3.5 h-3.5 text-indigo-500" />
+                                <span>Version & Renewal</span>
+                              </button>
+
+                              {isOrgAdmin && doc.status === "PENDING_VERIFICATION" && (
+                                <button
+                                  onClick={() => {
+                                    setActiveActionMenuId(null);
+                                    setVerifyTarget(doc);
+                                  }}
+                                  className="w-full flex items-center gap-2.5 px-3 py-2 text-xs text-emerald-700 hover:bg-emerald-50 transition-colors"
+                                >
+                                  <CheckCheck className="w-3.5 h-3.5 text-emerald-600" />
+                                  <span>Verify Document</span>
+                                </button>
+                              )}
+
+                              <div className="my-1 border-t border-gray-100" />
+
+                              {/* Delete Document Button */}
+                              <button
+                                onClick={() => {
+                                  setActiveActionMenuId(null);
+                                  setDeleteTarget(doc);
+                                }}
+                                className="w-full flex items-center gap-2.5 px-3 py-2 text-xs text-rose-600 hover:bg-rose-50 hover:text-rose-700 font-semibold transition-colors"
+                              >
+                                <Trash2 className="w-3.5 h-3.5 text-rose-500" />
+                                <span>Delete Document</span>
+                              </button>
+                            </div>
+                          )}
+                        </div>
                       </div>
                     </td>
                   </tr>
@@ -317,6 +447,16 @@ export default function Documents() {
         onClose={() => setHistoryTarget(null)}
         document={historyTarget}
         allDocuments={documents}
+        onDelete={(doc) => setDeleteTarget(doc)}
+      />
+
+      {/* Delete Document Modal */}
+      <DeleteDocumentModal
+        isOpen={Boolean(deleteTarget)}
+        onClose={() => setDeleteTarget(null)}
+        document={deleteTarget}
+        onDelete={handleDelete}
+        isDeleting={isDeleting}
       />
 
       {/* Upload Document Modal */}

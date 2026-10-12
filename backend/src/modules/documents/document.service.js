@@ -114,6 +114,70 @@ class DocumentService {
     const url = await storageService.getSignedDownloadUrl(doc.storage_key);
     return { url, file_name: doc.file_name };
   }
+
+  /**
+   * Stream document or provide signed URL for thumbnails and inline previews.
+   */
+  async getDocumentFile(user, docId) {
+    const doc = await prisma.document.findFirst({
+      where: { id: docId, org_id: user.org_id },
+    });
+    if (!doc) throw new NotFoundError('Document not found.');
+
+    try {
+      const stream = await storageService.getFileStream(doc.storage_key);
+      return {
+        stream,
+        mime_type: doc.mime_type,
+        file_name: doc.file_name,
+      };
+    } catch (err) {
+      const url = await storageService.getSignedDownloadUrl(doc.storage_key);
+      return {
+        url,
+        mime_type: doc.mime_type,
+        file_name: doc.file_name,
+      };
+    }
+  }
+
+  /**
+   * Delete a document and its storage object.
+   */
+  async deleteDocument(user, docId) {
+    const doc = await prisma.document.findFirst({
+      where: { id: docId, org_id: user.org_id },
+    });
+    if (!doc) throw new NotFoundError('Document not found.');
+
+    if (user.role !== 'ORG_ADMIN') {
+      if (doc.uploaded_by_id !== user.id && (!doc.location_id || !user.accessibleLocationIds?.includes(doc.location_id))) {
+        throw new ForbiddenError('You do not have permission to delete this document.');
+      }
+    }
+
+    // Unlink any child renewals referencing this document as parent
+    await prisma.document.updateMany({
+      where: { parent_document_id: docId },
+      data: { parent_document_id: null },
+    });
+
+    // Delete record from database (audit_link_documents cascades automatically)
+    await prisma.document.delete({
+      where: { id: docId },
+    });
+
+    // Clean up file in storage service
+    if (doc.storage_key) {
+      try {
+        await storageService.deleteFile(doc.storage_key);
+      } catch (err) {
+        console.warn(`[DocumentService] Failed to delete storage object ${doc.storage_key}:`, err.message);
+      }
+    }
+
+    return { message: 'Document deleted successfully.', id: docId };
+  }
 }
 
 module.exports = new DocumentService();

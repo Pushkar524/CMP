@@ -10,6 +10,9 @@ const router = express.Router();
 // Get audit data room by token (external inspector view)
 router.get('/by-token/:token', (req, res, next) => auditLinkController.getAuditByToken(req, res, next));
 
+// Download document from audit data room (external inspector view)
+router.get('/by-token/:token/documents/:docId/download', (req, res, next) => auditLinkController.downloadAuditDocument(req, res, next));
+
 // Record access log (called on successful data room open)
 router.post('/access/:token', (req, res, next) => auditLinkController.recordAuditAccess(req, res, next));
 

@@ -14,6 +14,7 @@ import { useAuth } from "../../context/AuthContext";
 import ScoreGauge from "../../components/ScoreGauge";
 import DependencyGraph from "../../components/DependencyGraph";
 import TrendChart from "../../components/TrendChart";
+import { ComplianceScoreSkeleton } from "../../components/Skeletons";
 
 export default function ComplianceScore() {
   const { canAccessLocation } = useAuth();
@@ -24,6 +25,7 @@ export default function ComplianceScore() {
   const [documents, setDocuments] = useState([]);
   const [scoreResult, setScoreResult] = useState(null);
   const [scoreHistory, setScoreHistory] = useState([]);
+  const [isLoading, setIsLoading] = useState(true);
 
   useEffect(() => {
     (async () => {
@@ -48,6 +50,8 @@ export default function ComplianceScore() {
         setDependencies([]);
         setLicenseTypes([]);
         setDocuments([]);
+      } finally {
+        setIsLoading(false);
       }
     })();
   }, []);
@@ -76,6 +80,10 @@ export default function ComplianceScore() {
   const totalMandatory = scoreBreakdown.totalMandatory ?? scoreSummary.totalRequired ?? 0;
   const uploadedCount = scoreBreakdown.uploadedCount ?? scoreSummary.compliantCount ?? 0;
   const gapsCount = scoreBreakdown.gapsCount ?? scoreSummary.missingCount ?? 0;
+
+  if (isLoading) {
+    return <ComplianceScoreSkeleton />;
+  }
 
   return (
     <div className="space-y-6">

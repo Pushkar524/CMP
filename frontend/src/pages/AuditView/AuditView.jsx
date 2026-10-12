@@ -9,41 +9,81 @@ import {
   Building,
   CheckCircle2,
   AlertTriangle,
-  Download
+  Download,
+  Loader2
 } from "lucide-react";
 import { api } from "../../services/api";
 
 export default function AuditView() {
   const { token } = useParams();
   const [pin, setPin] = useState("");
-  const [accessState, setAccessState] = useState({ allowed: false, link: null, message: "" });
+  const [savedPin, setSavedPin] = useState("");
+  const [accessState, setAccessState] = useState({ allowed: false, requiresPin: false, link: null, message: "" });
   const [documents, setDocuments] = useState([]);
   const [isLoading, setIsLoading] = useState(true);
+  const [isVerifyingPin, setIsVerifyingPin] = useState(false);
+  const [downloadingDocId, setDownloadingDocId] = useState(null);
   const [pinError, setPinError] = useState("");
 
-  useEffect(() => {
-    // Attempt access (without pin first in case no pin required)
-    const result = api.recordAuditAccess(token, "");
-    if (result.allowed) {
-      setAccessState(result);
-      const allDocs = api.getDocuments();
-      setDocuments(allDocs.filter(d => (result.link.document_ids || []).includes(d.id)));
-    } else {
-      setAccessState(result);
+  const verifyAccess = async (pinCode = "") => {
+    try {
+      const response = await api.getAuditByToken(token, pinCode);
+      const linkData = response.data || response;
+      setAccessState({ allowed: true, requiresPin: false, link: linkData, message: "" });
+      if (pinCode) {
+        setSavedPin(pinCode);
+      }
+      
+      const extractedDocs = (linkData.documents || []).map(item => item.document ? item.document : item);
+      setDocuments(extractedDocs);
+      setPinError("");
+
+      // Record access in background
+      api.recordAuditAccess(token, { success: true }).catch(() => {});
+    } catch (err) {
+      const msg = err.message || "";
+      if (msg.toLowerCase().includes("pin")) {
+        setAccessState({ allowed: false, requiresPin: true, link: null, message: msg });
+        if (pinCode) {
+          setPinError(msg);
+        }
+      } else {
+        setAccessState({ allowed: false, requiresPin: false, link: null, message: msg || "Access Denied" });
+      }
+    } finally {
+      setIsLoading(false);
+      setIsVerifyingPin(false);
     }
-    setIsLoading(false);
+  };
+
+  useEffect(() => {
+    setIsLoading(true);
+    verifyAccess("");
   }, [token]);
 
-  const handlePinSubmit = (e) => {
+  const handlePinSubmit = async (e) => {
     e.preventDefault();
-    const result = api.recordAuditAccess(token, pin);
-    if (result.allowed) {
-      setAccessState(result);
-      const allDocs = api.getDocuments();
-      setDocuments(allDocs.filter(d => (result.link.document_ids || []).includes(d.id)));
-      setPinError("");
-    } else {
-      setPinError(result.message || "Invalid PIN code.");
+    if (!pin) return;
+    setIsVerifyingPin(true);
+    setPinError("");
+    await verifyAccess(pin);
+  };
+
+  const handleDownload = (doc) => {
+    setDownloadingDocId(doc.id);
+    try {
+      const activePin = savedPin || pin || "";
+      const downloadUrl = api.getAuditDocumentDownloadUrl(token, doc.id, activePin);
+      const a = document.createElement("a");
+      a.href = downloadUrl;
+      a.download = doc.file_name || "document.pdf";
+      document.body.appendChild(a);
+      a.click();
+      document.body.removeChild(a);
+    } catch (err) {
+      console.error("Download failed:", err);
+    } finally {
+      setTimeout(() => setDownloadingDocId(null), 1200);
     }
   };
 
@@ -57,8 +97,8 @@ export default function AuditView() {
     );
   }
 
-  // If rejected because revoked or expired
-  if (!accessState.allowed && accessState.message && !accessState.message.includes("PIN")) {
+  // If rejected because revoked, expired, or token not found
+  if (!accessState.allowed && !accessState.requiresPin && accessState.message) {
     return (
       <div className="min-h-screen bg-slate-100 flex items-center justify-center p-4">
         <div className="bg-white rounded-3xl max-w-md w-full p-8 text-center shadow-xl border border-gray-200">
@@ -101,9 +141,10 @@ export default function AuditView() {
 
             <button
               type="submit"
-              className="w-full py-2.5 px-4 bg-indigo-600 hover:bg-indigo-700 text-white text-xs font-bold rounded-xl transition-all shadow-xs"
+              disabled={isVerifyingPin}
+              className="w-full py-2.5 px-4 bg-indigo-600 hover:bg-indigo-700 disabled:opacity-50 text-white text-xs font-bold rounded-xl transition-all shadow-xs cursor-pointer"
             >
-              Verify & Enter Data Room
+              {isVerifyingPin ? "Verifying PIN..." : "Verify & Enter Data Room"}
             </button>
           </form>
         </div>
@@ -147,7 +188,7 @@ export default function AuditView() {
           <p className="text-xs text-gray-500 mt-1 leading-relaxed">{link.notes}</p>
 
           <div className="mt-4 pt-4 border-t border-gray-100 flex flex-wrap items-center justify-between text-xs text-gray-500 gap-2">
-            <span>Prepared by: <strong>{link.created_by_name}</strong></span>
+            <span>Prepared by: <strong>{link.created_by?.name || link.created_by_name || link.organization?.name || "Administrator"}</strong></span>
             <span>Valid Until: <strong>{new Date(link.expires_at).toLocaleString()}</strong></span>
           </div>
         </div>
@@ -169,10 +210,10 @@ export default function AuditView() {
                     <FileText className="w-5 h-5" />
                   </div>
                   <div>
-                    <h4 className="text-sm font-bold text-gray-900">{doc.license_name}</h4>
+                    <h4 className="text-sm font-bold text-gray-900">{doc.license_type?.name || doc.license_name || doc.file_name}</h4>
                     <div className="text-xs text-gray-500 mt-0.5">{doc.file_name}</div>
                     <div className="mt-2 text-[10px] font-mono text-gray-500 bg-gray-50 px-2 py-1 rounded border border-gray-200 inline-block break-all">
-                      SHA-256: {doc.sha256_hash}
+                      SHA-256: {doc.sha256_hash || "Verified"}
                     </div>
                   </div>
                 </div>
@@ -182,11 +223,21 @@ export default function AuditView() {
                     {doc.status}
                   </span>
                   <button
-                    onClick={() => alert(`Simulating cryptographic verification & secure download for ${doc.file_name}`)}
-                    className="flex items-center gap-1.5 px-3 py-1.5 bg-gray-100 hover:bg-gray-200 text-gray-700 text-xs font-semibold rounded-lg transition-colors"
+                    onClick={() => handleDownload(doc)}
+                    disabled={downloadingDocId === doc.id}
+                    className="flex items-center gap-1.5 px-3 py-1.5 bg-indigo-50 hover:bg-indigo-100 text-indigo-700 hover:text-indigo-800 disabled:opacity-60 text-xs font-semibold rounded-lg transition-colors cursor-pointer"
                   >
-                    <Download className="w-3.5 h-3.5" />
-                    Download
+                    {downloadingDocId === doc.id ? (
+                      <>
+                        <Loader2 className="w-3.5 h-3.5 animate-spin text-indigo-600" />
+                        <span>Downloading...</span>
+                      </>
+                    ) : (
+                      <>
+                        <Download className="w-3.5 h-3.5" />
+                        <span>Download</span>
+                      </>
+                    )}
                   </button>
                 </div>
               </div>

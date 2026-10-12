@@ -17,6 +17,19 @@ function errorHandler(err, req, res, next) {
     error = new AppError('The requested record was not found.', 404);
   } else if (err.code === 'P2003') {
     error = new AppError('Foreign key constraint failed. Referenced record does not exist.', 400);
+  } else if (
+    err.code === 'P1001' ||
+    err.code === 'P1002' ||
+    err.code === 'P1003' ||
+    err.code === 'P1008' ||
+    err.code === 'P1017' ||
+    err.message?.includes("Can't reach database server") ||
+    err.message?.includes("database server") ||
+    err.message?.includes("ECONNREFUSED") ||
+    err.message?.includes("ETIMEDOUT") ||
+    err.message?.includes("ENOTFOUND")
+  ) {
+    error = new AppError('No internet connection. Please connect to the internet to continue.', 503);
   }
 
   // Handle JWT Errors
