@@ -81,6 +81,10 @@ h6 {
   background-color: var(--surface) !important;
 }
 
+.bg-slate-800 {
+  background-color: #1e293b !important;
+}
+
 .bg-slate-900,
 .bg-slate-950 {
   background-color: #172033 !important;
@@ -156,12 +160,22 @@ h6 {
   box-shadow: 0 1px 2px rgb(16 24 40 / 0.04), 0 8px 24px rgb(16 24 40 / 0.04);
 }
 
-input,
-select,
-textarea {
-  color: var(--ink);
+input:not([class*="bg-"]),
+select:not([class*="bg-"]),
+textarea:not([class*="bg-"]) {
   background-color: var(--surface);
-  border-color: var(--line-strong) !important;
+}
+
+input:not([class*="text-"]),
+select:not([class*="text-"]),
+textarea:not([class*="text-"]) {
+  color: var(--ink);
+}
+
+input:not([class*="border-"]),
+select:not([class*="border-"]),
+textarea:not([class*="border-"]) {
+  border-color: var(--line-strong);
 }
 
 input::placeholder,
@@ -175,6 +189,41 @@ textarea:focus {
   border-color: var(--primary) !important;
   box-shadow: 0 0 0 3px rgb(36 87 197 / 0.14);
   outline: none;
+}
+
+.register-page input,
+.register-page select,
+.register-page textarea {
+  color: #ffffff !important;
+  background-color: #1e293b !important;
+  border-color: #334155 !important;
+}
+
+.register-page input::placeholder,
+.register-page textarea::placeholder {
+  color: #64748b !important;
+}
+
+.register-page option {
+  background-color: #1e293b !important;
+  color: #ffffff !important;
+}
+
+.register-page input:focus,
+.register-page select:focus,
+.register-page textarea:focus {
+  border-color: #6366f1 !important;
+  box-shadow: 0 0 0 3px rgba(99, 102, 241, 0.25) !important;
+}
+
+.register-page input:-webkit-autofill,
+.register-page input:-webkit-autofill:hover,
+.register-page input:-webkit-autofill:focus,
+.register-page textarea:-webkit-autofill {
+  -webkit-text-fill-color: #ffffff !important;
+  -webkit-box-shadow: 0 0 0px 1000px #1e293b inset !important;
+  box-shadow: 0 0 0px 1000px #1e293b inset !important;
+  transition: background-color 5000s ease-in-out 0s;
 }
 
 button:focus-visible,

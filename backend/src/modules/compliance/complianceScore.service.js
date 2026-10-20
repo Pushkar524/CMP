@@ -207,32 +207,67 @@ class ComplianceScoreService {
     // 3.5. Evaluate Cascading Dependency Failures via Intelligence Engine
     const intelligenceService = require('../intelligence/intelligence.service');
     const graphData = await intelligenceService.getLocationDependencyGraph(locationId, orgId);
-    let cascadingBlockedCount = 0;
 
-    for (const chain of graphData.activeRiskChains) {
-      cascadingBlockedCount++;
+    // Group active risk chains by target license to prevent duplicate risk items
+    const chainsByTarget = new Map();
+    for (const chain of (graphData.activeRiskChains || [])) {
+      if (!chainsByTarget.has(chain.targetCode)) {
+        chainsByTarget.set(chain.targetCode, []);
+      }
+      chainsByTarget.get(chain.targetCode).push(chain);
+    }
+
+    let cascadingBlockedCount = chainsByTarget.size;
+
+    for (const [targetCode, chains] of chainsByTarget.entries()) {
+      const targetLicense = chains[0].targetLicense;
       const penalty = 10.0;
-      deductions.push({
-        licenseCode: chain.targetCode,
-        licenseName: chain.targetLicense,
-        penalty,
-        reason: `Cascading Risk: Downstream operations blocked because prerequisite (${chain.blockedByName}) is ${chain.reason.toLowerCase()}`,
-        severity: 'CRITICAL',
-        status: 'CASCADING_BLOCKED',
-        recommendation: chain.recommendation,
-      });
+      const blockerNames = chains.map((c) => c.blockedByName);
+      const isPlural = blockerNames.length > 1;
+
+      const cleanReasons = chains.map((c) => (c.reason || 'Missing').replace(/^prerequisite\s+/i, '').toLowerCase());
+      const reasonSuffix = isPlural
+        ? `prerequisites (${blockerNames.join(', ')}) are missing or expired`
+        : `prerequisite (${blockerNames[0]}) is ${cleanReasons[0]}`;
+
+      const reason = `Cascading Risk: Downstream operations blocked because ${reasonSuffix}`;
+
+      const recommendation = isPlural
+        ? `Renew or upload required prerequisites (${blockerNames.join(', ')}) to unblock statutory compliance for ${targetLicense}.`
+        : chains[0].recommendation;
+
+      const existingDeduction = deductions.find((d) => d.licenseCode === targetCode);
+      if (existingDeduction) {
+        existingDeduction.cascadingNote = reason;
+      } else {
+        deductions.push({
+          licenseCode: targetCode,
+          licenseName: targetLicense,
+          penalty,
+          reason,
+          severity: 'CRITICAL',
+          status: 'CASCADING_BLOCKED',
+          recommendation,
+        });
+      }
+
       suggestedActions.push(
-        `Resolve upstream block: ${chain.blockedByName} to unblock ${chain.targetLicense} (+${penalty.toFixed(1)} pts)`
+        `Resolve upstream block${isPlural ? 's' : ''}: ${blockerNames.join(', ')} to unblock ${targetLicense} (+${penalty.toFixed(1)} pts)`
       );
     }
 
-    if (!location.profile_completed) {
+    const isProfileComplete = Boolean(
+      location.profile_completed ||
+      (location.type && location.state && location.address)
+    );
+
+    if (!isProfileComplete) {
       suggestedActions.unshift('Complete the location profile before uploading compliance documents.');
     }
 
     // 4. Calculate Final Score (Clamped between 0 and 100)
     const totalPenalty = deductions.reduce((sum, d) => sum + d.penalty, 0);
-    const rawScore = location.profile_completed ? 100.0 - totalPenalty : 0.0;
+    const rawScore = isProfileComplete ? 100.0 - totalPenalty : 0.0;
     const finalScore = Math.max(0.0, Math.min(100.0, Math.round(rawScore * 10) / 10));
 
     // Determine Health Status
@@ -241,6 +276,28 @@ class ComplianceScoreService {
       healthStatus = 'CRITICAL';
     } else if (finalScore < 85) {
       healthStatus = 'WARNING';
+    }
+
+    // 4.5. Fast deterministic statutory legal enrichment (instant, non-blocking)
+    const stateName = location.state || 'State';
+    for (const d of deductions) {
+      if (!d.statutoryAct) {
+        d.statutoryAct = `${stateName} Statutory Licensing Regulations`;
+      }
+      if (!d.penaltyRisk) {
+        d.penaltyRisk = 'Notice of non-compliance, statutory fines, and suspension of commercial operations.';
+      }
+    }
+
+    // Reuse previously cached aiAudit if available without blocking calculation
+    let aiAudit = null;
+    const previousScore = await prisma.complianceScore.findFirst({
+      where: { location_id: locationId, org_id: orgId },
+      orderBy: { calculated_at: 'desc' },
+      select: { breakdown_json: true },
+    });
+    if (previousScore?.breakdown_json?.aiAudit) {
+      aiAudit = previousScore.breakdown_json.aiAudit;
     }
 
     // 5. Structure Breakdown Payload
@@ -268,6 +325,7 @@ class ComplianceScoreService {
       },
       deductions,
       suggestedActions,
+      aiAudit,
     };
 
     // 6. Persist historical snapshot in compliance_scores and update location
@@ -296,35 +354,86 @@ class ComplianceScoreService {
   }
 
   /**
-   * Recalculates scores for all locations belonging to an organization
+   * Recalculates scores for all locations belonging to an organization with behind-the-scenes AI insights
    */
   async calculateOrganizationScore(orgId) {
     const locations = await prisma.location.findMany({
       where: { org_id: orgId },
-      select: { id: true, name: true, code: true, type: true },
+      select: { id: true, name: true, code: true, type: true, state: true },
     });
 
     const locationScores = [];
+    const allDeductions = [];
+    const allActions = [];
+    let totalCompliant = 0;
+    let totalMissing = 0;
+    let totalRequired = 0;
+
     for (const loc of locations) {
       const res = await this.calculateLocationScore(loc.id, orgId);
       locationScores.push({
         locationId: loc.id,
         name: loc.name,
         code: loc.code,
+        type: loc.type,
+        state: loc.state,
         score: res.score,
         healthStatus: res.healthStatus,
+        breakdown: res.breakdown,
       });
+
+      if (res.breakdown) {
+        totalCompliant += res.breakdown.summary?.compliantCount || 0;
+        totalMissing += res.breakdown.summary?.missingCount || 0;
+        totalRequired += res.breakdown.summary?.totalRequired || 0;
+        if (Array.isArray(res.breakdown.deductions)) {
+          allDeductions.push(...res.breakdown.deductions.map(d => ({ ...d, locationName: loc.name })));
+        }
+        if (Array.isArray(res.breakdown.suggestedActions)) {
+          allActions.push(...res.breakdown.suggestedActions.map(a => `${loc.name}: ${a}`));
+        }
+      }
     }
 
     const avgScore = locationScores.length > 0
       ? Math.round((locationScores.reduce((acc, l) => acc + l.score, 0) / locationScores.length) * 10) / 10
       : 100.0;
 
+    const aiSummaries = locationScores
+      .filter(l => l.breakdown?.aiAudit?.executiveSummary)
+      .map(l => `${l.name}: ${l.breakdown.aiAudit.executiveSummary}`);
+
     return {
       organizationId: orgId,
       averageScore: avgScore,
       locationCount: locations.length,
       locations: locationScores,
+      breakdown: {
+        baseScore: 100.0,
+        finalScore: avgScore,
+        healthStatus: avgScore < 60 ? 'CRITICAL' : avgScore < 85 ? 'WARNING' : 'COMPLIANT',
+        location: {
+          id: 'all',
+          name: 'Overall Footprint (All Facilities)',
+          type: 'Enterprise Portfolio',
+          state: 'All Jurisdictions',
+        },
+        summary: {
+          totalRequired,
+          compliantCount: totalCompliant,
+          missingCount: totalMissing,
+          totalLocations: locations.length,
+        },
+        deductions: allDeductions,
+        suggestedActions: allActions,
+        aiAudit: {
+          healthTitle: 'Enterprise Statutory Footprint Audit',
+          executiveSummary: aiSummaries.length > 0
+            ? aiSummaries.slice(0, 3).join(' ')
+            : `Comprehensive portfolio audit across ${locations.length} operating facilities.`,
+          potentialScore: `${Math.min(100, Math.round(avgScore + 20))}%`,
+        },
+      },
     };
   }
 

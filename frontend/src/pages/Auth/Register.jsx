@@ -95,7 +95,7 @@ export default function Register() {
   }
 
   return (
-    <div className="min-h-screen bg-slate-950 flex flex-col">
+    <div className="register-page min-h-screen bg-slate-950 flex flex-col">
       {/* Top Bar */}
       <div className="border-b border-slate-800 px-6 py-3 flex items-center justify-between">
         <div className="flex items-center gap-2.5">
@@ -183,8 +183,17 @@ export default function Register() {
                 </div>
 
                 <div className="grid grid-cols-2 gap-4">
-                  <Field label="Business Phone">
-                    <Input id="org-phone" placeholder="+91 98765 43210" value={org.phone} onChange={v => updateOrg("phone", v)} icon={Phone} />
+                  <Field label="Business Phone" hint="numerals only">
+                    <Input
+                      id="org-phone"
+                      type="tel"
+                      inputMode="numeric"
+                      maxLength={15}
+                      placeholder="9876543210"
+                      value={org.phone}
+                      onChange={v => updateOrg("phone", v.replace(/\D/g, ""))}
+                      icon={Phone}
+                    />
                   </Field>
                   <Field label="Website" hint="optional">
                     <Input id="org-website" placeholder="https://yourcompany.com" value={org.website} onChange={v => updateOrg("website", v)} icon={Globe} />
@@ -199,6 +208,7 @@ export default function Register() {
                     onChange={e => updateOrg("address", e.target.value)}
                     placeholder="Full corporate address..."
                     className="w-full bg-slate-800 border border-slate-700 rounded-xl px-3.5 py-2.5 text-sm text-white placeholder-slate-500 focus:ring-2 focus:ring-indigo-500 focus:outline-none resize-none"
+                    style={{ backgroundColor: "#1e293b", color: "#ffffff" }}
                   />
                 </Field>
               </div>
@@ -308,11 +318,18 @@ export default function Register() {
             <div className="px-8 pb-8 flex items-center justify-between">
               <button
                 type="button"
-                onClick={() => setStep(s => s - 1)}
-                disabled={step === 0}
-                className="flex items-center gap-1.5 px-5 py-2.5 text-xs font-bold text-slate-400 hover:text-white disabled:opacity-30 disabled:cursor-not-allowed transition-colors"
+                onClick={() => {
+                  if (step > 0) {
+                    setStep(s => s - 1);
+                  } else {
+                    navigate("/login");
+                  }
+                }}
+                className="flex items-center gap-2 px-5 py-2.5 bg-slate-800 hover:bg-slate-700 text-slate-100 hover:text-white border border-slate-600 hover:border-slate-500 rounded-xl text-xs font-bold transition-all shadow-sm cursor-pointer"
+                title={step === 0 ? "Back to sign in" : "Previous step"}
               >
-                <ArrowLeft className="w-4 h-4" /> Back
+                <ArrowLeft className="w-4 h-4 text-slate-200" />
+                <span>Back</span>
               </button>
 
               {step < STEPS.length - 1 ? (
@@ -454,19 +471,22 @@ function BField({ label, children, required }) {
   );
 }
 
-function Input({ id, value, onChange, placeholder, type = "text", icon: Icon, error }) {
+function Input({ id, value, onChange, placeholder, type = "text", inputMode, maxLength, icon: Icon, error }) {
   return (
     <div className="relative">
       {Icon && <Icon className="w-3.5 h-3.5 text-slate-500 absolute left-3.5 top-1/2 -translate-y-1/2 pointer-events-none" />}
       <input
         id={id}
         type={type}
+        inputMode={inputMode}
+        maxLength={maxLength}
         value={value}
         onChange={e => onChange(e.target.value)}
         placeholder={placeholder}
         className={`w-full bg-slate-800 border rounded-xl px-3.5 py-2.5 text-sm text-white placeholder-slate-500 focus:ring-2 focus:ring-indigo-500 focus:outline-none transition-all ${
           error ? "border-red-500/60" : "border-slate-700 hover:border-slate-600"
         } ${Icon ? "pl-9" : ""}`}
+        style={{ backgroundColor: "#1e293b", color: "#ffffff" }}
       />
       {error && <p className="mt-1 text-[10px] text-red-400">{error}</p>}
     </div>
@@ -481,8 +501,13 @@ function Select({ id, value, onChange, options }) {
         value={value}
         onChange={e => onChange(e.target.value)}
         className="w-full bg-slate-800 border border-slate-700 hover:border-slate-600 rounded-xl px-3.5 py-2.5 text-sm text-white focus:ring-2 focus:ring-indigo-500 focus:outline-none appearance-none"
+        style={{ backgroundColor: "#1e293b", color: "#ffffff" }}
       >
-        {options.map(o => <option key={o} value={o}>{o}</option>)}
+        {options.map(o => (
+          <option key={o} value={o} style={{ backgroundColor: "#1e293b", color: "#ffffff" }}>
+            {o}
+          </option>
+        ))}
       </select>
       <ChevronDown className="w-4 h-4 text-slate-500 absolute right-3 top-1/2 -translate-y-1/2 pointer-events-none" />
     </div>
@@ -498,6 +523,7 @@ function BInput({ id, value, onChange, placeholder, type = "text" }) {
       onChange={e => onChange(e.target.value)}
       placeholder={placeholder}
       className="w-full bg-slate-900 border border-slate-700 hover:border-slate-600 rounded-lg px-3 py-2 text-xs text-white placeholder-slate-500 focus:ring-2 focus:ring-indigo-500 focus:outline-none transition-all"
+      style={{ backgroundColor: "#0f172a", color: "#ffffff" }}
     />
   );
 }

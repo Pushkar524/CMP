@@ -129,6 +129,53 @@ class NotificationController {
       next(err);
     }
   }
+
+  /**
+   * GET /api/notifications/preferences
+   */
+  async getPreferences(req, res, next) {
+    try {
+      const data = await notificationService.getUserPreferences(req.user.id);
+      res.status(200).json({
+        success: true,
+        data,
+      });
+    } catch (err) {
+      next(err);
+    }
+  }
+
+  /**
+   * PUT /api/notifications/preferences
+   */
+  async updatePreferences(req, res, next) {
+    try {
+      const data = await notificationService.updateUserPreferences(req.user.id, req.body);
+      res.status(200).json({
+        success: true,
+        message: 'Notification preferences updated successfully',
+        data,
+      });
+    } catch (err) {
+      next(err);
+    }
+  }
+
+  /**
+   * POST /api/notifications/sweep
+   */
+  async runSweep(req, res, next) {
+    try {
+      const data = await notificationService.runExpirySweep(req.user.org_id);
+      res.status(200).json({
+        success: true,
+        message: 'Automated compliance expiry sweep completed',
+        data,
+      });
+    } catch (err) {
+      next(err);
+    }
+  }
 }
 
 module.exports = new NotificationController();

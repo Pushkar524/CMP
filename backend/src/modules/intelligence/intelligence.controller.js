@@ -155,6 +155,27 @@ class IntelligenceController {
       next(err);
     }
   }
+
+  /**
+   * GET /api/intelligence/locations/:id/ai-audit
+   * AI Compliance Copilot & Gap Audit powered by Gemini
+   */
+  async getLocationAiAudit(req, res, next) {
+    try {
+      const geminiAuditService = require('./geminiAudit.service');
+      const data = await geminiAuditService.auditLocationCompliance(
+        req.params.id,
+        req.user.org_id
+      );
+
+      res.status(200).json({
+        success: true,
+        data,
+      });
+    } catch (err) {
+      next(err);
+    }
+  }
 }
 
 module.exports = new IntelligenceController();

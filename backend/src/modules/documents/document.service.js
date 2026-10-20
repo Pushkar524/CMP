@@ -37,10 +37,45 @@ class DocumentService {
    * Upload a new document (multipart/form-data handled by multer in controller).
    */
   async uploadDocument(user, fields, file) {
-    const { license_type_id, location_id, version, issue_date, expiry_date, parent_document_id } = fields;
+    let { license_type_id, custom_license_name, custom_issuing_authority, location_id, version, issue_date, expiry_date, parent_document_id } = fields;
+
+    if (!file) throw new BadRequestError('No file uploaded.');
+
+    // Support for custom / other document upload
+    if (license_type_id === '__other__' || license_type_id === 'OTHER' || (!license_type_id && custom_license_name)) {
+      if (!custom_license_name || !custom_license_name.trim()) {
+        throw new BadRequestError('Document name is required when specifying a custom document.');
+      }
+      const trimmedName = custom_license_name.trim();
+      const authority = (custom_issuing_authority || '').trim() || 'Custom Authority';
+
+      // Check if a LicenseType with this name already exists
+      let existingLt = await prisma.licenseType.findFirst({
+        where: {
+          name: { equals: trimmedName, mode: 'insensitive' },
+        },
+      });
+
+      if (!existingLt) {
+        const cleanBase = trimmedName.toUpperCase().replace(/[^A-Z0-9]/g, '_').replace(/_+/g, '_').slice(0, 15);
+        const randomSuffix = crypto.randomBytes(3).toString('hex').toUpperCase();
+        const code = 'CUSTOM_' + (cleanBase || 'DOC') + '_' + randomSuffix;
+
+        existingLt = await prisma.licenseType.create({
+          data: {
+            name: trimmedName,
+            code,
+            description: 'Custom regulatory document added during upload',
+            issuing_authority: authority,
+            is_lifetime_valid: fields.is_lifetime_valid === 'true' || fields.is_lifetime_valid === true,
+          },
+        });
+      }
+
+      license_type_id = existingLt.id;
+    }
 
     if (!license_type_id) throw new BadRequestError('license_type_id is required.');
-    if (!file) throw new BadRequestError('No file uploaded.');
 
     // Location access check for LOCATION_MANAGER
     if (location_id && user.role === 'LOCATION_MANAGER') {
@@ -77,7 +112,7 @@ class DocumentService {
         status: 'PENDING_VERIFICATION',
       },
       include: {
-        license_type: { select: { id: true, name: true, code: true } },
+        license_type: { select: { id: true, name: true, code: true, issuing_authority: true } },
         location: { select: { id: true, name: true } },
       },
     });
@@ -104,6 +139,24 @@ class DocumentService {
         verified_at: new Date(),
       },
     });
+
+    if (doc.uploaded_by_id) {
+      try {
+        const notificationService = require('../notifications/notification.service');
+        await notificationService.createInAppNotification({
+          userId: doc.uploaded_by_id,
+          orgId: user.org_id,
+          type: approve ? 'EXPIRY_WARNING' : 'LAPSED_LICENSE',
+          title: approve ? `✅ Document Verified: ${doc.file_name}` : `❌ Document Rejected: ${doc.file_name}`,
+          message: approve
+            ? `Your uploaded document "${doc.file_name}" has been approved and verified by an administrator.`
+            : `Your uploaded document "${doc.file_name}" was rejected. Reason: ${reason || 'Rejected by administrator.'}`,
+          link: '/documents',
+        });
+      } catch (notifErr) {
+        console.warn('⚠️ [DocumentService] Failed to notify uploader:', notifErr.message);
+      }
+    }
 
     return updated;
   }

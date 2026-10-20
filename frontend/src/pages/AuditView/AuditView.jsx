@@ -13,6 +13,7 @@ import {
   Loader2
 } from "lucide-react";
 import { api } from "../../services/api";
+import { BufferingLoader } from "../../components/Skeletons";
 
 export default function AuditView() {
   const { token } = useParams();
@@ -90,9 +91,11 @@ export default function AuditView() {
   if (isLoading) {
     return (
       <div className="min-h-screen bg-slate-100 flex items-center justify-center p-4">
-        <div className="text-center text-sm font-semibold text-gray-500 animate-pulse">
-          Validating Secure Audit Token...
-        </div>
+        <BufferingLoader
+          title="Validating Secure Audit Token"
+          message="Establishing secure end-to-end encrypted session..."
+          className="max-w-md w-full shadow-lg"
+        />
       </div>
     );
   }

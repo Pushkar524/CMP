@@ -25,4 +25,11 @@ router.delete('/:id', (req, res, next) => notificationController.deleteNotificat
 // Trigger a test alert (useful for UI/testing)
 router.post('/test', (req, res, next) => notificationController.createTestAlert(req, res, next));
 
+// User Notification Preferences
+router.get('/preferences', (req, res, next) => notificationController.getPreferences(req, res, next));
+router.put('/preferences', (req, res, next) => notificationController.updatePreferences(req, res, next));
+
+// On-demand / Triggered Expiry & Risk Sweep
+router.post('/sweep', (req, res, next) => notificationController.runSweep(req, res, next));
+
 module.exports = router;

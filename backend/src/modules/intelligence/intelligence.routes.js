@@ -24,6 +24,14 @@ router.get(
   (req, res, next) => intelligenceController.getLocationGraph(req, res, next)
 );
 
+// Location-specific AI compliance audit & copilot powered by Gemini
+router.get(
+  '/locations/:id/ai-audit',
+  tenantScope,
+  verifyLocationAccess('id', 'params'),
+  (req, res, next) => intelligenceController.getLocationAiAudit(req, res, next)
+);
+
 // Admin Configuration Routes
 router.post(
   '/license-types',

@@ -44,8 +44,8 @@ export default function CompleteLocationModal({ location, onSave }) {
           <SelectField label="State / UT" value={form.state} options={STATES} onChange={(value) => update("state", value)} />
           <Field label="City" value={form.city} onChange={(value) => update("city", value)} placeholder="Bengaluru" />
           <Field label="GSTIN" value={form.gstin} onChange={(value) => update("gstin", value.toUpperCase())} placeholder="29AABCA1234F1Z8" />
-          <Field label="PIN code" value={form.pincode} onChange={(value) => update("pincode", value)} placeholder="560034" />
-          <Field label="Contact phone" value={form.phone} onChange={(value) => update("phone", value)} placeholder="+91 80 1234 5678" />
+          <Field label="PIN code" inputMode="numeric" maxLength={6} value={form.pincode} onChange={(value) => update("pincode", value.replace(/\D/g, ""))} placeholder="560034" />
+          <Field label="Contact phone" type="tel" inputMode="numeric" maxLength={15} value={form.phone} onChange={(value) => update("phone", value.replace(/\D/g, ""))} placeholder="9876543210" />
           <Field label="Employee count" type="number" value={form.employee_count} onChange={(value) => update("employee_count", value)} placeholder="45" />
           <Field label="Operating hours" value={form.operating_hours} onChange={(value) => update("operating_hours", value)} placeholder="9:00 AM - 9:00 PM" />
           <div className="sm:col-span-2"><label className="block text-xs font-bold uppercase tracking-wider text-gray-700">Full address *</label><textarea required rows={3} value={form.address} onChange={(event) => update("address", event.target.value)} className="mt-1.5 w-full resize-none rounded-xl border border-gray-300 px-3.5 py-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-indigo-500" placeholder="Door number, street, area" /></div>
@@ -56,8 +56,8 @@ export default function CompleteLocationModal({ location, onSave }) {
   );
 }
 
-function Field({ label, type = "text", value, onChange, placeholder }) {
-  return <div><label className="block text-xs font-bold uppercase tracking-wider text-gray-700">{label}</label><input type={type} value={value} onChange={(event) => onChange(event.target.value)} placeholder={placeholder} className="mt-1.5 w-full rounded-xl border border-gray-300 px-3.5 py-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-indigo-500" /></div>;
+function Field({ label, type = "text", inputMode, maxLength, value, onChange, placeholder }) {
+  return <div><label className="block text-xs font-bold uppercase tracking-wider text-gray-700">{label}</label><input type={type} inputMode={inputMode} maxLength={maxLength} value={value} onChange={(event) => onChange(event.target.value)} placeholder={placeholder} className="mt-1.5 w-full rounded-xl border border-gray-300 px-3.5 py-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-indigo-500" /></div>;
 }
 
 function SelectField({ label, value, options, onChange }) {

@@ -132,6 +132,134 @@ async function main() {
     },
   });
 
+  const professionalTax = await prisma.licenseType.create({
+    data: {
+      name: 'Professional Tax (PT) Registration / Enrollment Certificate',
+      code: 'PROFESSIONAL_TAX',
+      description: 'Mandatory state tax registration for employers and business entities.',
+      issuing_authority: 'State Commercial Tax Department',
+      default_validity_months: 12,
+      is_lifetime_valid: false,
+    },
+  });
+
+  const epfRegistration = await prisma.licenseType.create({
+    data: {
+      name: "Employees' Provident Fund (EPF) Registration Certificate",
+      code: 'EPF_REGISTRATION',
+      description: 'Mandatory registration under the Employees Provident Funds and Miscellaneous Provisions Act.',
+      issuing_authority: "Employees' Provident Fund Organisation (EPFO)",
+      is_lifetime_valid: true,
+    },
+  });
+
+  const esiRegistration = await prisma.licenseType.create({
+    data: {
+      name: "Employees' State Insurance (ESI) Registration Certificate",
+      code: 'ESI_REGISTRATION',
+      description: 'Statutory social security and health insurance coverage for employees.',
+      issuing_authority: "Employees' State Insurance Corporation (ESIC)",
+      is_lifetime_valid: true,
+    },
+  });
+
+  const factoryLicense = await prisma.licenseType.create({
+    data: {
+      name: 'Factory License',
+      code: 'FACTORY_LICENSE',
+      description: 'Approval and operational license under the Factories Act, 1948.',
+      issuing_authority: 'Directorate of Industrial Safety & Health (DISH / Factories)',
+      default_validity_months: 12,
+      is_lifetime_valid: false,
+    },
+  });
+
+  const contractLabour = await prisma.licenseType.create({
+    data: {
+      name: 'Contract Labour (CLRA) Registration / License',
+      code: 'CONTRACT_LABOUR_LICENSE',
+      description: 'Statutory license for principal employers or contractors engaging contract workforce.',
+      issuing_authority: 'State Labour Department (Licensing Officer)',
+      default_validity_months: 12,
+      is_lifetime_valid: false,
+    },
+  });
+
+  const legalMetrology = await prisma.licenseType.create({
+    data: {
+      name: 'Legal Metrology / Weights & Measures Verification Certificate',
+      code: 'LEGAL_METROLOGY',
+      description: 'Verification stamp and certification for commercial weighing instruments and pre-packaged commodities.',
+      issuing_authority: 'Department of Legal Metrology',
+      default_validity_months: 12,
+      is_lifetime_valid: false,
+    },
+  });
+
+  const hazardousWaste = await prisma.licenseType.create({
+    data: {
+      name: 'Hazardous Waste Management Authorization',
+      code: 'HAZARDOUS_WASTE_AUTH',
+      description: 'Statutory authorization for safe collection, handling, and disposal of industrial/hazardous waste.',
+      issuing_authority: 'State Pollution Control Board (SPCB)',
+      default_validity_months: 60,
+      is_lifetime_valid: false,
+    },
+  });
+
+  const boilerCert = await prisma.licenseType.create({
+    data: {
+      name: 'Boiler Operation & Inspection Certificate',
+      code: 'BOILER_CERTIFICATE',
+      description: 'Clearance under the Indian Boilers Act for safe industrial steam boiler operation.',
+      issuing_authority: 'Directorate of Boilers',
+      default_validity_months: 12,
+      is_lifetime_valid: false,
+    },
+  });
+
+  const coi = await prisma.licenseType.create({
+    data: {
+      name: 'Certificate of Incorporation (CIN / COI)',
+      code: 'CERTIFICATE_OF_INCORPORATION',
+      description: 'Constitutional registration certificate confirming incorporation under Companies Act.',
+      issuing_authority: 'Ministry of Corporate Affairs (MCA)',
+      is_lifetime_valid: true,
+    },
+  });
+
+  const msmeUdyam = await prisma.licenseType.create({
+    data: {
+      name: 'MSME / Udyam Registration Certificate',
+      code: 'MSME_UDYAM',
+      description: 'Statutory registration acknowledging Micro, Small or Medium Enterprise status.',
+      issuing_authority: 'Ministry of Micro, Small & Medium Enterprises (MSME)',
+      is_lifetime_valid: true,
+    },
+  });
+
+  const trademark = await prisma.licenseType.create({
+    data: {
+      name: 'Trademark / IP Registration Certificate',
+      code: 'TRADEMARK_REGISTRATION',
+      description: 'Intellectual property brand and trademark registration certificate.',
+      issuing_authority: 'Controller General of Patents, Designs and Trade Marks (CGPDTM)',
+      default_validity_months: 120,
+      is_lifetime_valid: false,
+    },
+  });
+
+  const signageLicense = await prisma.licenseType.create({
+    data: {
+      name: 'Signage / Commercial Advertisement Permission',
+      code: 'SIGNAGE_LICENSE',
+      description: 'Municipal permit to display exterior shop signs, lighted logos, or advertising hoardings.',
+      issuing_authority: 'Local Municipal Corporation / Urban Local Body',
+      default_validity_months: 12,
+      is_lifetime_valid: false,
+    },
+  });
+
   // 3. Seed License Dependencies (Cascading Risk Graph)
   console.log('🔗 Seeding Cascading Risk Dependencies...');
   // FIRE_NOC requires LIFT_LICENSE (if multi-story with lifts)

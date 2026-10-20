@@ -245,6 +245,11 @@ export const intelligence = {
   getLocationGraph: async (locationId, orgId) => {
     return await fetchAPI(`/api/intelligence/locations/${locationId}/graph?orgId=${orgId}`);
   },
+
+  getLocationAiAudit: async (locationId) => {
+    const res = await fetchAPI(`/api/intelligence/locations/${locationId}/ai-audit`);
+    return res.data;
+  },
 };
 
 // ============================================================
@@ -275,6 +280,15 @@ export const documents = {
     }
     if (docData.parent_document_id) {
       formData.append('parent_document_id', docData.parent_document_id);
+    }
+    if (docData.custom_license_name) {
+      formData.append('custom_license_name', docData.custom_license_name);
+    }
+    if (docData.custom_issuing_authority) {
+      formData.append('custom_issuing_authority', docData.custom_issuing_authority);
+    }
+    if (docData.is_lifetime_valid !== undefined) {
+      formData.append('is_lifetime_valid', String(docData.is_lifetime_valid));
     }
 
     const token = localStorage.getItem('sclip_auth_token');
@@ -372,6 +386,32 @@ export const notifications = {
     return await fetchAPI('/api/notifications/test', {
       method: 'POST',
       body: JSON.stringify({ title, message, type: alertType, link, sendEmail }),
+    });
+  },
+
+  getPreferences: async () => {
+    const res = await fetchAPI('/api/notifications/preferences');
+    return res.data || {
+      email_enabled: true,
+      sms_enabled: false,
+      in_app_enabled: true,
+      expiry_warning: true,
+      lapsed_license: true,
+      cascading_risk: true,
+    };
+  },
+
+  updatePreferences: async (prefs) => {
+    const res = await fetchAPI('/api/notifications/preferences', {
+      method: 'PUT',
+      body: JSON.stringify(prefs),
+    });
+    return res.data || prefs;
+  },
+
+  runSweep: async () => {
+    return await fetchAPI('/api/notifications/sweep', {
+      method: 'POST',
     });
   },
 };
@@ -528,6 +568,11 @@ export const api = {
     return await compliance.getLocationHistory(locationId, limit);
   },
 
+  // --- Intelligence & AI Audit ---
+  getLocationAiAudit: async (locationId) => {
+    return await intelligence.getLocationAiAudit(locationId);
+  },
+
   // --- Audit Links ---
   getAuditLinks: async () => {
     const data = await auditLinks.getAuditLinks();
@@ -554,16 +599,33 @@ export const api = {
     return data.notifications || [];
   },
 
-  getPreferences: () => ({
-    email_enabled: true,
-    sms_enabled: false,
-    in_app_enabled: true,
-    expiry_warning: true,
-    lapsed_license: true,
-    cascading_risk: true,
-  }),
+  getUnreadCount: async () => {
+    const res = await notifications.getUnreadCount();
+    return res.data?.unreadCount ?? 0;
+  },
 
-  savePreferences: () => {},
+  markNotificationRead: async (id) => {
+    return await notifications.markAsRead(id);
+  },
+
+  markAllAsRead: async () => {
+    return await notifications.markAllAsRead();
+  },
+
+  deleteNotification: async (id) => {
+    return await notifications.deleteNotification(id);
+  },
+
+  getPreferences: async () => {
+    return await notifications.getPreferences();
+  },
+
+  savePreferences: async (newPrefs) => {
+    return await notifications.updatePreferences(newPrefs);
+  },
+
+  createTestAlert: notifications.createTestAlert,
+  runSweep: notifications.runSweep,
 
   // --- Utility ---
   computeSHA256,

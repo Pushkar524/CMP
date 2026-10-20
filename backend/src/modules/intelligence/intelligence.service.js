@@ -351,8 +351,11 @@ class IntelligenceService {
       return info.rawStatus === 'EXPIRED' || info.rawStatus === 'MISSING' || info.rawStatus === 'REJECTED';
     };
 
-    // Check all nodes for cascading failures
+    // Check nodes for cascading failures (only relevant to mandatory licenses for this facility type or uploaded licenses)
     for (const lt of licenseTypes) {
+      const isApplicable = requiredLicenseSet.size === 0 || requiredLicenseSet.has(lt.id) || docMap.has(lt.id);
+      if (!isApplicable) continue;
+
       const prereqs = incomingPrereqs.get(lt.id) || [];
       const blockers = [];
 
@@ -363,7 +366,7 @@ class IntelligenceService {
             prereqId: p.prereqId,
             prereqCode: prereqNode?.code || 'UNKNOWN',
             prereqName: prereqNode?.name || 'Unknown License',
-            reason: prereqNode?.rawStatus === 'EXPIRED' ? 'Prerequisite Expired' : 'Prerequisite Missing',
+            reason: prereqNode?.rawStatus === 'EXPIRED' ? 'Expired' : 'Missing',
           });
         }
       }
@@ -377,7 +380,8 @@ class IntelligenceService {
     const nodes = licenseTypes.map((lt) => {
       const base = nodeStatusMap.get(lt.id);
       const blockers = cascadingBlocks.get(lt.id) || [];
-      const isCascadingBlocked = blockers.length > 0;
+      const isApplicable = requiredLicenseSet.size === 0 || requiredLicenseSet.has(lt.id) || docMap.has(lt.id);
+      const isCascadingBlocked = blockers.length > 0 && isApplicable;
 
       let effectiveStatus = base.rawStatus;
       if (isCascadingBlocked) {
@@ -393,8 +397,8 @@ class IntelligenceService {
     });
 
     const edges = dependencies.map((d) => {
-      const prereqInfo = nodeStatusMap.get(d.prerequisite_license_type_id);
       const isPrereqFailing = isNodeUnhealthy(d.prerequisite_license_type_id);
+      const isTargetApplicable = requiredLicenseSet.size === 0 || requiredLicenseSet.has(d.license_type_id) || docMap.has(d.license_type_id);
 
       return {
         id: d.id,
@@ -403,13 +407,16 @@ class IntelligenceService {
         target: d.license_type_id,
         targetCode: d.license_type.code,
         isBlocking: d.is_blocking,
-        isTriggeringCascadingRisk: isPrereqFailing && d.is_blocking,
+        isTriggeringCascadingRisk: isPrereqFailing && d.is_blocking && isTargetApplicable,
       };
     });
 
-    // Extract active cascading risk chains for display
+    // Extract active cascading risk chains for display (strictly scoped to applicable licenses)
     const activeRiskChains = [];
     for (const [targetId, blockers] of cascadingBlocks.entries()) {
+      const isApplicable = requiredLicenseSet.size === 0 || requiredLicenseSet.has(targetId) || docMap.has(targetId);
+      if (!isApplicable) continue;
+
       const targetNode = nodeStatusMap.get(targetId);
       for (const blocker of blockers) {
         activeRiskChains.push({

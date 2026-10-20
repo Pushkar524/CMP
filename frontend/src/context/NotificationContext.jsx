@@ -1,4 +1,4 @@
-import React, { createContext, useContext, useState, useEffect } from "react";
+import React, { createContext, useContext, useState, useEffect, useCallback } from "react";
 import { api } from "../services/api";
 
 const NotificationContext = createContext();
@@ -15,73 +15,140 @@ export const NotificationProvider = ({ children }) => {
   });
   const [loading, setLoading] = useState(true);
 
-  // Initialize data from API async after mount
-  useEffect(() => {
-    ;(async () => {
-      if (!localStorage.getItem('sclip_auth_token')) {
-        setLoading(false);
-        return;
+  // Normalizes notification shape from backend
+  const normalizeNotification = (n) => ({
+    ...n,
+    id: n.id,
+    title: n.title || "Notification",
+    message: n.message || n.content || "",
+    channel: n.channel || "IN_APP",
+    isRead: Boolean(n.isRead || n.status === "READ"),
+    status: n.status || "UNREAD",
+    sentAt: n.sentAt || n.sent_at || new Date().toISOString(),
+    link: n.link || null,
+  });
+
+  const fetchNotificationsAndPrefs = useCallback(async () => {
+    const token = localStorage.getItem("sclip_auth_token");
+    if (!token) {
+      setNotifications([]);
+      setLoading(false);
+      return;
+    }
+
+    try {
+      const [notifsData, prefsData] = await Promise.allSettled([
+        api.getNotifications(),
+        api.getPreferences(),
+      ]);
+
+      if (notifsData.status === "fulfilled" && Array.isArray(notifsData.value)) {
+        setNotifications(notifsData.value.map(normalizeNotification));
       }
 
-      try {
-        const notifs = await api.getNotifications();
-        setNotifications(notifs || []);
-      } catch (e) {
-        // Fallback to empty on failure
-        setNotifications([]);
+      if (prefsData.status === "fulfilled" && prefsData.value) {
+        setPreferences(prefsData.value);
       }
-      try {
-        const prefs = api.getPreferences();
-        setPreferences(prefs);
-      } catch (e) {
-        // Fallback to defaults
-        setPreferences({
-          email_enabled: true,
-          sms_enabled: false,
-          in_app_enabled: true,
-          expiry_warning: true,
-          lapsed_license: true,
-          cascading_risk: true,
-        });
-      } finally {
-        setLoading(false);
-      }
-    })();
+    } catch (e) {
+      console.warn("Notice: could not load notifications:", e.message);
+    } finally {
+      setLoading(false);
+    }
   }, []);
 
-  const unreadCount = notifications.filter(n => !n.read).length;
+  // Fetch on mount and setup polling every 30 seconds
+  useEffect(() => {
+    fetchNotificationsAndPrefs();
 
-  const markAsRead = (id) => {
-    api.markNotificationRead(id);
-    setNotifications(api.getNotifications());
+    const interval = window.setInterval(() => {
+      if (localStorage.getItem("sclip_auth_token")) {
+        fetchNotificationsAndPrefs();
+      }
+    }, 30000);
+
+    return () => window.clearInterval(interval);
+  }, [fetchNotificationsAndPrefs]);
+
+  const unreadCount = notifications.filter((n) => !n.isRead).length;
+
+  const markAsRead = async (id) => {
+    // Optimistic UI update
+    setNotifications((prev) =>
+      prev.map((n) => (n.id === id ? { ...n, isRead: true, status: "READ" } : n))
+    );
+    try {
+      await api.markNotificationRead(id);
+    } catch (e) {
+      console.error("Failed to mark notification as read:", e.message);
+      fetchNotificationsAndPrefs();
+    }
   };
 
-  const markAllAsRead = () => {
-    const updated = notifications.map(n => ({ ...n, read: true }));
-    api.saveNotifications(updated);
-    setNotifications(updated);
+  const markAllAsRead = async () => {
+    // Optimistic UI update
+    setNotifications((prev) =>
+      prev.map((n) => ({ ...n, isRead: true, status: "READ" }))
+    );
+    try {
+      await api.markAllAsRead();
+    } catch (e) {
+      console.error("Failed to mark all as read:", e.message);
+      fetchNotificationsAndPrefs();
+    }
   };
 
-  const updatePreferences = (newPrefs) => {
-    api.savePreferences(newPrefs);
+  const deleteNotification = async (id) => {
+    setNotifications((prev) => prev.filter((n) => n.id !== id));
+    try {
+      await api.deleteNotification(id);
+    } catch (e) {
+      console.error("Failed to delete notification:", e.message);
+      fetchNotificationsAndPrefs();
+    }
+  };
+
+  const updatePreferences = async (newPrefs) => {
     setPreferences(newPrefs);
+    try {
+      await api.savePreferences(newPrefs);
+    } catch (e) {
+      console.error("Failed to update preferences:", e.message);
+    }
   };
 
-  // Provide loading state for components to check
+  const triggerTestAlert = async (title, message, type = "EXPIRY_WARNING", link = "/dashboard") => {
+    try {
+      await api.createTestAlert(title, message, type, link);
+      await fetchNotificationsAndPrefs();
+    } catch (e) {
+      console.error("Failed to trigger test alert:", e.message);
+      throw e;
+    }
+  };
+
+  const runSweep = async () => {
+    try {
+      await api.runSweep();
+      await fetchNotificationsAndPrefs();
+    } catch (e) {
+      console.error("Failed to run compliance sweep:", e.message);
+      throw e;
+    }
+  };
+
   const value = {
     notifications,
     unreadCount,
     markAsRead,
     markAllAsRead,
+    deleteNotification,
     preferences,
     updatePreferences,
+    triggerTestAlert,
+    runSweep,
+    refreshNotifications: fetchNotificationsAndPrefs,
     loading,
   };
-
-  // If still loading, render children immediately
-  if (loading) {
-    return <NotificationContext.Provider value={value}>{children}</NotificationContext.Provider>;
-  }
 
   return (
     <NotificationContext.Provider value={value}>

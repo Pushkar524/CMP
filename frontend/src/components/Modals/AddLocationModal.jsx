@@ -164,8 +164,9 @@ export default function AddLocationModal({ isOpen, onClose, onAdd }) {
               <Label>PIN Code</Label>
               <input
                 type="text"
+                inputMode="numeric"
                 value={pincode}
-                onChange={e => setPincode(e.target.value)}
+                onChange={e => setPincode(e.target.value.replace(/\D/g, ""))}
                 placeholder="560034"
                 maxLength={6}
                 className="mt-1.5 w-full text-sm border border-gray-300 rounded-xl px-3.5 py-2.5 focus:ring-2 focus:ring-indigo-500 focus:outline-none"
@@ -174,10 +175,12 @@ export default function AddLocationModal({ isOpen, onClose, onAdd }) {
             <div>
               <Label>Contact Phone</Label>
               <input
-                type="text"
+                type="tel"
+                inputMode="numeric"
                 value={phone}
-                onChange={e => setPhone(e.target.value)}
-                placeholder="+91 80 1234 5678"
+                onChange={e => setPhone(e.target.value.replace(/\D/g, ""))}
+                placeholder="9876543210"
+                maxLength={15}
                 className="mt-1.5 w-full text-sm border border-gray-300 rounded-xl px-3.5 py-2.5 focus:ring-2 focus:ring-indigo-500 focus:outline-none"
               />
             </div>

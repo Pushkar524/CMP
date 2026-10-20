@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from "react";
-import { X, UploadCloud, Shield, Check, FileText, Loader2, Clock, Calendar } from "lucide-react";
+import { X, UploadCloud, Shield, Check, FileText, Loader2, Clock, Calendar, FilePlus } from "lucide-react";
 import { computeSHA256 } from "../../services/api";
 
 export default function UploadDocumentModal({ isOpen, onClose, onUpload, locations = [], licenseTypes = [] }) {
@@ -25,6 +25,8 @@ export default function UploadDocumentModal({ isOpen, onClose, onUpload, locatio
   const [shaHash, setShaHash] = useState("");
   const [isHashing, setIsHashing] = useState(false);
   const [isUploading, setIsUploading] = useState(false);
+  const [customDocName, setCustomDocName] = useState("");
+  const [customAuthority, setCustomAuthority] = useState("");
   const [error, setError] = useState("");
 
   const minExpiryDate = issueDate || minIssueDate;
@@ -50,7 +52,7 @@ export default function UploadDocumentModal({ isOpen, onClose, onUpload, locatio
 
   // Sync default validity or lifetime flag whenever license type changes
   useEffect(() => {
-    if (licenseTypeId && licenseTypes.length > 0) {
+    if (licenseTypeId && licenseTypeId !== "__other__" && licenseTypes.length > 0) {
       const selected = licenseTypes.find((t) => t.id === licenseTypeId);
       if (selected?.is_lifetime_valid) {
         setIsLifetimeValid(true);
@@ -67,6 +69,8 @@ export default function UploadDocumentModal({ isOpen, onClose, onUpload, locatio
         setValidityMonths(String(m));
         const calculated = addMonthsToDate(base, defMonths);
         if (calculated) setExpiryDate(calculated);
+      } else {
+        setIsLifetimeValid(false);
       }
     }
   }, [licenseTypeId]);
@@ -185,6 +189,15 @@ export default function UploadDocumentModal({ isOpen, onClose, onUpload, locatio
     e.preventDefault();
     setError("");
     setIsUploading(true);
+
+    if (licenseTypeId === "__other__") {
+      if (!customDocName.trim()) {
+        setError("Please enter the document or license name for your custom document.");
+        setIsUploading(false);
+        return;
+      }
+    }
+
     const lt = licenseTypes.find(t => t.id === licenseTypeId);
 
     if (issueDate) {
@@ -216,16 +229,21 @@ export default function UploadDocumentModal({ isOpen, onClose, onUpload, locatio
     }
 
     try {
+      const isOther = licenseTypeId === "__other__";
       await onUpload({
-        license_type_id: licenseTypeId,
-        license_code: lt?.code || "CUSTOM",
-        license_name: lt?.name || "Regulatory License",
+        license_type_id: isOther ? "__other__" : licenseTypeId,
+        custom_license_name: isOther ? customDocName.trim() : "",
+        custom_issuing_authority: isOther ? customAuthority.trim() : "",
+        license_code: isOther ? "CUSTOM" : (lt?.code || "CUSTOM"),
+        license_name: isOther ? customDocName.trim() : (lt?.name || "Regulatory License"),
         location_id: isOrgWide ? null : locationId,
         file_name: fileName || "document.pdf",
         issue_date: issueDate || todayStr,
         expiry_date: isLifetimeValid ? null : expiryDate,
         is_lifetime_valid: isLifetimeValid
       }, file);
+      setCustomDocName("");
+      setCustomAuthority("");
       onClose();
     } catch (uploadError) {
       setError(uploadError.message || "Document upload failed. Please try again.");
@@ -296,26 +314,82 @@ export default function UploadDocumentModal({ isOpen, onClose, onUpload, locatio
 
           {/* License Type */}
           <div>
-            <label className="block text-xs font-bold text-gray-700 uppercase tracking-wider mb-1.5">
-              License / Clearance Type
-            </label>
+            <div className="flex items-center justify-between mb-1.5">
+              <label className="text-xs font-bold text-gray-700 uppercase tracking-wider">
+                License / Clearance Type
+              </label>
+              {licenseTypeId === "__other__" && (
+                <span className="text-[11px] font-semibold text-amber-700 bg-amber-100/80 px-2 py-0.5 rounded-md">
+                  Custom Mode
+                </span>
+              )}
+            </div>
             <select
               value={licenseTypeId}
               onChange={(e) => {
-                setLicenseTypeId(e.target.value);
-                const selected = licenseTypes.find(t => t.id === e.target.value);
-                if (selected?.is_lifetime_valid) setIsLifetimeValid(true);
+                const val = e.target.value;
+                setLicenseTypeId(val);
+                if (val !== "__other__") {
+                  const selected = licenseTypes.find(t => t.id === val);
+                  if (selected?.is_lifetime_valid) setIsLifetimeValid(true);
+                  else setIsLifetimeValid(false);
+                }
               }}
               className="w-full text-sm border border-gray-300 rounded-lg px-3 py-2 bg-white focus:ring-2 focus:ring-indigo-500 focus:outline-hidden"
               required
             >
-              {licenseTypes.map((lt) => (
-                <option key={lt.id} value={lt.id}>
-                  {lt.name} ({lt.issuing_authority})
-                </option>
-              ))}
+              <optgroup label="Standard Regulatory & Statutory Documents">
+                {licenseTypes.map((lt) => (
+                  <option key={lt.id} value={lt.id}>
+                    {lt.name} {lt.issuing_authority ? `(${lt.issuing_authority})` : ""}
+                  </option>
+                ))}
+              </optgroup>
+              <optgroup label="Custom / Other Documents">
+                <option value="__other__">➕ Other (Enter Custom Document Name...)</option>
+              </optgroup>
             </select>
           </div>
+
+          {/* Custom Document Details (shown when "Other" is selected) */}
+          {licenseTypeId === "__other__" && (
+            <div className="bg-amber-50/70 border border-amber-200/90 rounded-xl p-3.5 space-y-3 animate-in fade-in slide-in-from-top-1 duration-150">
+              <div className="flex items-center gap-2 text-xs font-bold text-amber-950 uppercase tracking-wider">
+                <FilePlus className="w-4 h-4 text-amber-600" />
+                <span>Specify Custom Document</span>
+              </div>
+              <div className="space-y-2.5">
+                <div>
+                  <label className="block text-xs font-semibold text-gray-700 mb-1">
+                    Document / License Name <span className="text-red-500">*</span>
+                  </label>
+                  <input
+                    type="text"
+                    value={customDocName}
+                    onChange={(e) => setCustomDocName(e.target.value)}
+                    placeholder="e.g. ISO 9001 Quality Certificate, Factory Lease Deed, Health NOC"
+                    className="w-full text-sm border border-gray-300 rounded-lg px-3 py-2 bg-white focus:ring-2 focus:ring-indigo-500 focus:outline-hidden placeholder:text-gray-400"
+                    required
+                  />
+                </div>
+                <div>
+                  <label className="block text-xs font-semibold text-gray-700 mb-1">
+                    Issuing Authority / Agency <span className="text-gray-400 font-normal">(Optional)</span>
+                  </label>
+                  <input
+                    type="text"
+                    value={customAuthority}
+                    onChange={(e) => setCustomAuthority(e.target.value)}
+                    placeholder="e.g. Bureau Veritas, Municipal Ward Office, Internal Auditor"
+                    className="w-full text-sm border border-gray-300 rounded-lg px-3 py-2 bg-white focus:ring-2 focus:ring-indigo-500 focus:outline-hidden placeholder:text-gray-400"
+                  />
+                </div>
+              </div>
+              <p className="text-[11px] text-amber-800/90 leading-snug">
+                💡 This custom document will be cataloged and tracked with SHA-256 integrity verification.
+              </p>
+            </div>
+          )}
 
           {/* Scope: Org Wide or Location Specific */}
           <div>

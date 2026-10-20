@@ -15,6 +15,14 @@ const server = app.listen(PORT, async () => {
   } catch (err) {
     console.warn(`⚠️  Storage init warning: ${err.message}`);
   }
+
+  // Initialize automated background scheduler
+  try {
+    const { initScheduler } = require('./jobs/scheduler');
+    initScheduler();
+  } catch (err) {
+    console.warn(`⚠️  Scheduler init warning: ${err.message}`);
+  }
 });
 
 // Graceful Shutdown

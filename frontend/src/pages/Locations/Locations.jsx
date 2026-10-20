@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from "react";
-import { Plus, MapPin, Building, ShieldCheck, Search, Filter } from "lucide-react";
+import { Plus, MapPin, Search, Filter } from "lucide-react";
 import { api } from "../../services/api";
 import { useAuth } from "../../context/AuthContext";
 import ScoreGauge from "../../components/ScoreGauge";
@@ -164,7 +164,7 @@ export default function Locations() {
                   onClick={() => setSelectedLocation(loc)}
                   className="font-bold text-indigo-600 hover:text-indigo-800"
                 >
-                  View Documents &rarr;
+                  View Docs &rarr;
                 </button>
               </div>
             </div>
