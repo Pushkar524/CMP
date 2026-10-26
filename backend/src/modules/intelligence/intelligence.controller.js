@@ -1,4 +1,5 @@
 const intelligenceService = require('./intelligence.service');
+const geminiAuditService = require('./geminiAudit.service');
 
 class IntelligenceController {
   /**
@@ -162,7 +163,6 @@ class IntelligenceController {
    */
   async getLocationAiAudit(req, res, next) {
     try {
-      const geminiAuditService = require('./geminiAudit.service');
       const data = await geminiAuditService.auditLocationCompliance(
         req.params.id,
         req.user.org_id

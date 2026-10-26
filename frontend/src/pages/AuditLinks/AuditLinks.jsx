@@ -1,15 +1,12 @@
-import React, { useState, useEffect } from "react";
+import { useState, useEffect } from "react";
 import { Link } from "react-router-dom";
 import {
   Link2,
-  Shield,
   Copy,
   ExternalLink,
   Ban,
   Clock,
   KeyRound,
-  FileCheck,
-  Eye,
   Check
 } from "lucide-react";
 import { api } from "../../services/api";

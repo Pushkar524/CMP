@@ -1,18 +1,12 @@
-import React, { useState, useEffect } from "react";
+import { useState, useEffect } from "react";
 import { useSearchParams } from "react-router-dom";
 import {
   Upload,
-  CheckCircle,
-  Clock,
-  AlertTriangle,
-  XCircle,
   Shield,
   FileText,
   Search,
   History,
-  RefreshCw,
   Building2,
-  MapPin,
   CheckCheck,
   MoreVertical,
   Trash2
@@ -91,8 +85,13 @@ export default function Documents() {
   };
 
   const handleVerify = async (docId, approve, reason) => {
-    await api.verifyDocument(docId, approve, reason);
-    await loadData();
+    try {
+      await api.verifyDocument(docId, approve, reason);
+      await loadData();
+    } catch (error) {
+      console.error("Failed to verify document:", error);
+      alert(error.message || "Failed to update document verification status.");
+    }
   };
 
   const handleCheckIntegrity = (doc) => {

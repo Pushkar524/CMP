@@ -1,11 +1,35 @@
-import React, { useState } from "react";
+import { useState } from "react";
 import { useNavigate, Link } from "react-router-dom";
-import { Shield, Building2, UserCheck, ArrowRight, Lock, Loader2, WifiOff, AlertCircle } from "lucide-react";
+import { Shield, Building2, ArrowRight, Loader2, WifiOff, AlertCircle } from "lucide-react";
 import { useAuth } from "../../context/AuthContext";
+
+const DEMO_PERSONAS = [
+  {
+    name: "Pushkar Raj Purohit",
+    email: "admin@acmeretail.com",
+    role: "ORG_ADMIN",
+    badge: "Org Admin",
+    description: "Multi-location administrator with full compliance & settings access",
+  },
+  {
+    name: "Pavan Kumar",
+    email: "manager.blr@acmeretail.com",
+    role: "LOCATION_MANAGER",
+    badge: "BLR Store Manager",
+    description: "Scoped to Bangalore Indiranagar Store",
+  },
+  {
+    name: "Suhas Patel",
+    email: "manager.bom@acmeretail.com",
+    role: "LOCATION_MANAGER",
+    badge: "BOM Logistics Manager",
+    description: "Scoped to Mumbai Logistics Hub",
+  },
+];
 
 export default function Login() {
   const navigate = useNavigate();
-  const { allUsers, login, switchUser } = useAuth();
+  const { login } = useAuth();
   const [email, setEmail] = useState("admin@acmeretail.com");
   const [password, setPassword] = useState("Password@123");
   const [error, setError] = useState("");
@@ -42,15 +66,22 @@ export default function Login() {
     }
   };
 
-  const handleQuickPersona = (user) => {
+  const handleQuickPersona = async (persona) => {
     if (!navigator.onLine) {
       setError("No internet connection. Please connect to the internet to continue.");
       return;
     }
+    setError("");
+    setEmail(persona.email);
+    setPassword("Password@123");
     setIsSubmitting(true);
-    switchUser(user.id);
-    setEmail(user.email);
-    navigate("/dashboard");
+    try {
+      await login(persona.email, "Password@123");
+      navigate("/dashboard");
+    } catch (err) {
+      setError(err.message || "Sign in failed");
+      setIsSubmitting(false);
+    }
   };
 
   return (
@@ -151,19 +182,20 @@ export default function Login() {
               Quick RBAC Persona Sign-In (Demo)
             </span>
             <div className="space-y-2">
-              {allUsers.map((u) => (
+              {DEMO_PERSONAS.map((p) => (
                 <button
-                  key={u.id}
+                  key={p.email}
                   type="button"
-                  onClick={() => handleQuickPersona(u)}
-                  className="w-full text-left p-2.5 rounded-xl border border-gray-200 hover:border-indigo-300 hover:bg-indigo-50/40 transition-colors flex items-center justify-between text-xs"
+                  onClick={() => handleQuickPersona(p)}
+                  disabled={isSubmitting}
+                  className="w-full text-left p-2.5 rounded-xl border border-gray-200 hover:border-indigo-300 hover:bg-indigo-50/40 transition-colors flex items-center justify-between text-xs disabled:opacity-60 cursor-pointer"
                 >
                   <div className="truncate">
-                    <span className="font-bold text-gray-900 block truncate">{u.name}</span>
-                    <span className="text-[10px] text-gray-400 block truncate">{u.email}</span>
+                    <span className="font-bold text-gray-900 block truncate">{p.name}</span>
+                    <span className="text-[10px] text-gray-400 block truncate">{p.email}</span>
                   </div>
-                  <span className="text-[9px] font-bold uppercase px-2 py-0.5 rounded-full bg-slate-100 text-slate-700 shrink-0 ml-2">
-                    {u.role}
+                  <span className="text-[9px] font-bold uppercase px-2 py-0.5 rounded-full bg-indigo-50 text-indigo-700 border border-indigo-100 shrink-0 ml-2">
+                    {p.badge}
                   </span>
                 </button>
               ))}

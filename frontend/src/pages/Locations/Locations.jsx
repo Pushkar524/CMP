@@ -1,8 +1,7 @@
-import React, { useState, useEffect } from "react";
+import { useState, useEffect } from "react";
 import { Plus, MapPin, Search, Filter } from "lucide-react";
 import { api } from "../../services/api";
 import { useAuth } from "../../context/AuthContext";
-import ScoreGauge from "../../components/ScoreGauge";
 import RegisterLocationModal from "../../components/Modals/RegisterLocationModal";
 import CompleteLocationModal from "../../components/Modals/CompleteLocationModal";
 import { LocationsSkeleton } from "../../components/Skeletons";
@@ -47,8 +46,13 @@ export default function Locations() {
   }, [isOrgAdmin, locations, user?.id]);
 
   const handleAddLocation = async (newLoc) => {
-    await api.addLocation(newLoc);
-    await loadData();
+    try {
+      await api.addLocation(newLoc);
+      await loadData();
+    } catch (err) {
+      console.error("Failed to add location:", err);
+      alert(err.message || "Failed to create location.");
+    }
   };
 
   const filteredLocations = locations

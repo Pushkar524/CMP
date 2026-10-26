@@ -17,6 +17,10 @@ class EmailService {
     }
   }
 
+  getBaseUrl() {
+    return process.env.FRONTEND_URL || process.env.CORS_ORIGIN || 'http://localhost:5173';
+  }
+
   /**
    * Initializes Nodemailer transporter if using nodemailer provider
    */
@@ -230,7 +234,7 @@ class EmailService {
       `,
       actionButton: {
         text: 'Open Compliance Portal',
-        url: 'https://compliance.local/dashboard',
+        url: `${this.getBaseUrl()}/dashboard`,
       },
     });
 
@@ -272,7 +276,7 @@ class EmailService {
       `,
       actionButton: {
         text: 'Review License Details',
-        url: 'https://compliance.local/documents',
+        url: `${this.getBaseUrl()}/documents`,
       },
     });
 
@@ -317,7 +321,7 @@ class EmailService {
       `,
       actionButton: {
         text: 'Inspect Dependency Graph',
-        url: 'https://compliance.local/compliance-graph',
+        url: `${this.getBaseUrl()}/compliance`,
       },
     });
 

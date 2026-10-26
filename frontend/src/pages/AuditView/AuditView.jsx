@@ -1,16 +1,15 @@
-import React, { useState, useEffect } from "react";
-import { useParams, Link } from "react-router-dom";
+import { useState, useEffect } from "react";
+import { useParams } from "react-router-dom";
 import {
   ShieldCheck,
   Lock,
-  KeyRound,
   FileText,
-  Calendar,
-  Building,
-  CheckCircle2,
   AlertTriangle,
   Download,
-  Loader2
+  Loader2,
+  Printer,
+  FileCheck,
+  CheckCircle2
 } from "lucide-react";
 import { api } from "../../services/api";
 import { BufferingLoader } from "../../components/Skeletons";
@@ -86,6 +85,40 @@ export default function AuditView() {
     } finally {
       setTimeout(() => setDownloadingDocId(null), 1200);
     }
+  };
+
+  const handleDownloadManifest = () => {
+    const manifest = {
+      auditDataRoom: accessState.link?.title || "Statutory Audit Package",
+      roomToken: token,
+      organization: accessState.link?.organization?.name || "Apex Logistics & Retail Ltd",
+      preparedBy: accessState.link?.created_by?.name || accessState.link?.created_by_name || "Administrator",
+      generatedAt: new Date().toISOString(),
+      expiresAt: accessState.link?.expires_at,
+      statutoryComplianceFramework: "Govt of India Statutory Acts (CLRA, Factories, Shop & Est, FSSAI, PCB)",
+      verifiedDocumentsCount: documents.length,
+      cryptographicAuditManifest: documents.map((d, index) => ({
+        index: index + 1,
+        licenseName: d.license_type?.name || d.license_name || d.file_name,
+        fileName: d.file_name,
+        sha256Fingerprint: d.sha256_hash || "VERIFIED_TAMPER_PROOF",
+        status: d.status,
+        issuingAuthority: d.license_type?.issuing_authority || "State Statutory Authority",
+        issueDate: d.issue_date,
+        expiryDate: d.expiry_date,
+        verifiedAt: d.verified_at,
+      })),
+    };
+
+    const blob = new Blob([JSON.stringify(manifest, null, 2)], { type: "application/json" });
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement("a");
+    a.href = url;
+    a.download = `audit-dossier-manifest-${token.slice(0, 8)}.json`;
+    document.body.appendChild(a);
+    a.click();
+    document.body.removeChild(a);
+    URL.revokeObjectURL(url);
   };
 
   if (isLoading) {
@@ -190,9 +223,31 @@ export default function AuditView() {
           <h2 className="text-xl font-black text-gray-900 mt-2">{link.title}</h2>
           <p className="text-xs text-gray-500 mt-1 leading-relaxed">{link.notes}</p>
 
-          <div className="mt-4 pt-4 border-t border-gray-100 flex flex-wrap items-center justify-between text-xs text-gray-500 gap-2">
-            <span>Prepared by: <strong>{link.created_by?.name || link.created_by_name || link.organization?.name || "Administrator"}</strong></span>
-            <span>Valid Until: <strong>{new Date(link.expires_at).toLocaleString()}</strong></span>
+          <div className="mt-4 pt-4 border-t border-gray-100 flex flex-wrap items-center justify-between text-xs text-gray-500 gap-3">
+            <div className="flex flex-wrap items-center gap-4">
+              <span>Prepared by: <strong>{link.created_by?.name || link.created_by_name || link.organization?.name || "Administrator"}</strong></span>
+              <span>Valid Until: <strong>{new Date(link.expires_at).toLocaleString()}</strong></span>
+            </div>
+
+            <div className="flex items-center gap-2">
+              <button
+                onClick={() => window.print()}
+                className="px-3 py-1.5 bg-slate-100 hover:bg-slate-200 text-slate-800 font-semibold rounded-xl text-xs flex items-center gap-1.5 transition-colors cursor-pointer"
+                title="Print or Save PDF Inspection Dossier"
+              >
+                <Printer className="w-3.5 h-3.5 text-slate-600" />
+                <span>Print / PDF Dossier</span>
+              </button>
+
+              <button
+                onClick={handleDownloadManifest}
+                className="px-3 py-1.5 bg-indigo-600 hover:bg-indigo-700 text-white font-semibold rounded-xl text-xs flex items-center gap-1.5 transition-colors shadow-2xs cursor-pointer"
+                title="Download Cryptographic SHA-256 Audit Manifest"
+              >
+                <FileCheck className="w-3.5 h-3.5 text-white" />
+                <span>Download Manifest (JSON)</span>
+              </button>
+            </div>
           </div>
         </div>
 

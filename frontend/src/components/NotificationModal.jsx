@@ -11,6 +11,7 @@ import {
   Trash2,
   ExternalLink,
   ShieldAlert,
+  Sparkles,
 } from "lucide-react";
 import { useNotifications } from "../context/NotificationContext";
 
@@ -181,24 +182,26 @@ export default function NotificationModal({ isOpen, onClose }) {
             )}
 
             {notifications.length === 0 ? (
-              <div className="text-center py-8 px-4 bg-slate-50 border border-dashed border-slate-200 rounded-xl">
-                <Bell className="w-8 h-8 mx-auto text-slate-300 mb-2" />
-                <p className="text-xs font-semibold text-slate-700">No active compliance alerts</p>
-                <p className="text-[11px] text-slate-400 mt-0.5">
-                  Your locations and documents are currently within validity periods.
+              <div className="text-center py-10 px-4 bg-gradient-to-b from-slate-50 to-indigo-50/30 border border-dashed border-indigo-200/80 rounded-2xl animate-in fade-in zoom-in-95 duration-200">
+                <div className="w-12 h-12 rounded-2xl bg-indigo-100/80 text-indigo-600 flex items-center justify-center mx-auto mb-3 shadow-inner">
+                  <Sparkles className="w-6 h-6 text-indigo-600" />
+                </div>
+                <h4 className="text-sm font-bold text-gray-900">All Caught Up!</h4>
+                <p className="text-xs text-gray-500 mt-1 max-w-xs mx-auto leading-relaxed">
+                  Zero pending compliance escalations or critical expiry warnings across all monitored locations.
                 </p>
-                <div className="mt-3 flex justify-center gap-2">
+                <div className="mt-4 flex items-center justify-center gap-2.5">
                   <button
                     onClick={handleRunSweep}
                     disabled={isSweeping}
-                    className="px-3 py-1.5 text-xs font-semibold text-slate-700 bg-white border border-slate-300 hover:bg-slate-50 rounded-lg shadow-2xs"
+                    className="px-3 py-1.5 text-xs font-semibold text-slate-700 bg-white border border-slate-300 hover:bg-slate-50 rounded-xl shadow-xs transition-colors cursor-pointer"
                   >
-                    Run Expiry Sweep
+                    {isSweeping ? "Running Sweep..." : "Run Expiry Sweep"}
                   </button>
                   <button
                     onClick={handleSendTest}
                     disabled={isSendingTest}
-                    className="px-3 py-1.5 text-xs font-semibold text-white bg-indigo-600 hover:bg-indigo-700 rounded-lg shadow-2xs"
+                    className="px-3 py-1.5 text-xs font-semibold text-white bg-indigo-600 hover:bg-indigo-700 rounded-xl shadow-xs transition-colors cursor-pointer"
                   >
                     Send Test Alert
                   </button>

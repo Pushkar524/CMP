@@ -36,23 +36,40 @@ class StorageService {
         forcePathStyle: true,
       });
     }
+    this.bucketVerified = false;
   }
 
   /**
-   * Ensures bucket exists; creates it if running locally on MinIO
+   * Ensures bucket exists; creates it if running locally on MinIO.
+   * Caches verification to avoid redundant S3 calls on every upload.
    */
   async ensureBucketExists() {
+    if (this.bucketVerified) return;
     try {
       await this.client.send(new HeadBucketCommand({ Bucket: this.bucket }));
+      this.bucketVerified = true;
     } catch (err) {
       if (config.storage.provider === 'minio') {
         try {
           await this.client.send(new CreateBucketCommand({ Bucket: this.bucket }));
           console.log(`[StorageService] MinIO bucket '${this.bucket}' created successfully.`);
+          this.bucketVerified = true;
         } catch (createErr) {
           console.error(`[StorageService] Failed to create MinIO bucket:`, createErr.message);
         }
       }
+    }
+  }
+
+  /**
+   * Health check to verify storage connectivity
+   */
+  async checkHealth() {
+    try {
+      await this.client.send(new HeadBucketCommand({ Bucket: this.bucket }));
+      return { status: 'UP', bucket: this.bucket, provider: config.storage.provider };
+    } catch (err) {
+      return { status: 'DEGRADED', error: err.message, provider: config.storage.provider };
     }
   }
 

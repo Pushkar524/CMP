@@ -26,7 +26,7 @@ class AuditLinkController {
   async getAuditByToken(req, res, next) {
     try {
       const { token } = req.params;
-      const { pin } = req.query;
+      const pin = req.headers['x-audit-pin'] || req.query?.pin || req.body?.pin;
       const link = await auditLinkService.getAuditByToken(token, pin);
       res.status(200).json({ success: true, data: link });
     } catch (err) { next(err); }
@@ -49,12 +49,13 @@ class AuditLinkController {
   async downloadAuditDocument(req, res, next) {
     try {
       const { token, docId } = req.params;
-      const { pin } = req.query;
+      const pin = req.headers['x-audit-pin'] || req.query?.pin || req.body?.pin;
       const result = await auditLinkService.getAuditDocumentDownload(token, docId, pin);
 
       if (result.stream) {
         res.setHeader('Content-Disposition', `attachment; filename="${result.file_name}"`);
         res.setHeader('Content-Type', result.mime_type || 'application/octet-stream');
+        result.stream.on('error', (err) => next(err));
         result.stream.pipe(res);
       } else if (result.url) {
         res.redirect(result.url);

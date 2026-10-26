@@ -5,7 +5,14 @@ import {
   Lightbulb,
   Building,
   RefreshCw,
-  Sparkles
+  Sparkles,
+  CalendarDays,
+  Layers,
+  Clock,
+  ShieldCheck,
+  FileText,
+  Filter,
+  Calendar
 } from "lucide-react";
 import { api } from "../../services/api";
 import { useAuth } from "../../context/AuthContext";
@@ -13,6 +20,89 @@ import ScoreGauge from "../../components/ScoreGauge";
 import DependencyGraph from "../../components/DependencyGraph";
 import TrendChart from "../../components/TrendChart";
 import { ComplianceScoreSkeleton, BufferingLoader } from "../../components/Skeletons";
+
+const STATUTORY_CALENDAR_EVENTS = [
+  {
+    id: "epf_esi_monthly",
+    title: "EPF & ESI Monthly Electronic Challan & Remittance",
+    category: "LABOUR",
+    statutoryAct: "EPF & MP Act, 1952 & ESI Act, 1948",
+    dueDate: "2026-11-15",
+    frequency: "Monthly (15th)",
+    matchedCodes: ["EPF_REGISTRATION", "ESI_REGISTRATION"],
+    description: "Monthly electronic contribution filing for employees' provident fund and statutory health insurance coverage.",
+  },
+  {
+    id: "gstr_3b_monthly",
+    title: "GSTR-3B Summary Return & Tax Settlement",
+    category: "TAX",
+    statutoryAct: "Central Goods and Services Tax Act, 2017",
+    dueDate: "2026-11-20",
+    frequency: "Monthly (20th)",
+    matchedCodes: ["GST_REGISTRATION"],
+    description: "Self-declaration summary return for monthly inward/outward supplies and tax liability settlement.",
+  },
+  {
+    id: "advance_tax_q3",
+    title: "Advance Income Tax - 3rd Installment (75%)",
+    category: "TAX",
+    statutoryAct: "Income Tax Act, 1961 - Section 208/211",
+    dueDate: "2026-12-15",
+    frequency: "Quarterly (Dec 15)",
+    matchedCodes: ["PAN", "GST_REGISTRATION"],
+    description: "Mandatory corporate advance tax payment milestone for corporate entities whose tax liability exceeds ₹10,000.",
+  },
+  {
+    id: "clra_half_yearly",
+    title: "Contract Labour (CLRA) Half-Yearly Return Filing",
+    category: "LABOUR",
+    statutoryAct: "Contract Labour (Regulation & Abolition) Act, 1970",
+    dueDate: "2027-01-30",
+    frequency: "Half-Yearly (Jan 30)",
+    matchedCodes: ["CONTRACT_LABOUR_LICENSE"],
+    description: "Mandatory semi-annual submission of workforce engagement and minimum wages disbursement records.",
+  },
+  {
+    id: "trade_license_renewal",
+    title: "Municipal Trade License Annual Renewal Window",
+    category: "MUNICIPAL",
+    statutoryAct: "Karnataka Municipal Corporations Act / Local ULB Bylaws",
+    dueDate: "2027-02-28",
+    frequency: "Annual (Feb 28)",
+    matchedCodes: ["TRADE_LICENSE", "SHOP_AND_ESTABLISHMENT"],
+    description: "Annual statutory renewal for operating stores and commercial hubs within municipal limits.",
+  },
+  {
+    id: "advance_tax_q4",
+    title: "Advance Income Tax - 4th Installment (100%)",
+    category: "TAX",
+    statutoryAct: "Income Tax Act, 1961 - Section 208/211",
+    dueDate: "2027-03-15",
+    frequency: "Quarterly (Mar 15)",
+    matchedCodes: ["PAN", "GST_REGISTRATION"],
+    description: "Final installment of estimated annual corporation income tax.",
+  },
+  {
+    id: "pcb_annual_return",
+    title: "Consent to Operate (CTO) Environmental Compliance Return",
+    category: "ENVIRONMENTAL",
+    statutoryAct: "Water (P&CP) Act, 1974 & Air (P&CP) Act, 1981",
+    dueDate: "2027-04-30",
+    frequency: "Annual (Apr 30)",
+    matchedCodes: ["POLLUTION_NOC", "HAZARDOUS_WASTE_AUTH"],
+    description: "Annual environmental emissions and hazardous packaging waste management report to SPCB.",
+  },
+  {
+    id: "fssai_annual_return",
+    title: "FSSAI Food Business Annual Licensing Return",
+    category: "MUNICIPAL",
+    statutoryAct: "Food Safety and Standards Act, 2006",
+    dueDate: "2027-05-31",
+    frequency: "Annual (May 31)",
+    matchedCodes: ["FSSAI_LICENSE"],
+    description: "Annual declaration of food handling, storage, and cafeteria hygiene standards compliance.",
+  },
+];
 
 export default function ComplianceScore() {
   const { canAccessLocation } = useAuth();
@@ -25,6 +115,8 @@ export default function ComplianceScore() {
   const [scoreHistory, setScoreHistory] = useState([]);
   const [isLoading, setIsLoading] = useState(true);
   const [isSwitchingFacility, setIsSwitchingFacility] = useState(false);
+  const [activeTab, setActiveTab] = useState("engine");
+  const [calendarFilter, setCalendarFilter] = useState("ALL");
 
   useEffect(() => {
     let isMounted = true;
@@ -263,8 +355,162 @@ export default function ComplianceScore() {
         </div>
       </div>
 
-      {/* Main Scorecard & Breakdown */}
-      {isSwitchingFacility ? (
+      {/* View Switcher: Engine vs Regulatory Calendar */}
+      <div className="flex items-center gap-2 border-b border-gray-200 pb-2">
+        <button
+          onClick={() => setActiveTab("engine")}
+          className={`flex items-center gap-2 px-4 py-2 text-xs font-bold rounded-xl transition-all cursor-pointer ${
+            activeTab === "engine"
+              ? "bg-indigo-600 text-white shadow-xs"
+              : "text-gray-600 hover:text-gray-900 hover:bg-gray-100"
+          }`}
+        >
+          <Layers className="w-4 h-4" />
+          <span>Scoring Engine & Risk Chains</span>
+        </button>
+        <button
+          onClick={() => setActiveTab("calendar")}
+          className={`flex items-center gap-2 px-4 py-2 text-xs font-bold rounded-xl transition-all cursor-pointer ${
+            activeTab === "calendar"
+              ? "bg-indigo-600 text-white shadow-xs"
+              : "text-gray-600 hover:text-gray-900 hover:bg-gray-100"
+          }`}
+        >
+          <CalendarDays className="w-4 h-4" />
+          <span>Statutory Regulatory Calendar</span>
+          <span className="text-[10px] bg-indigo-100 text-indigo-700 font-extrabold px-1.5 py-0.5 rounded-full">
+            2026–2027 Schedule
+          </span>
+        </button>
+      </div>
+
+      {/* Active Tab View */}
+      {activeTab === "calendar" ? (
+        <div className="space-y-6 animate-in fade-in duration-200">
+          {/* Quick Metrics Bar */}
+          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
+            <div className="bg-white rounded-2xl border border-gray-200 p-4 shadow-xs">
+              <span className="text-[10px] font-bold uppercase tracking-wider text-gray-400">Next Upcoming Deadline</span>
+              <div className="text-sm font-bold text-gray-900 mt-1 flex items-center gap-1.5">
+                <Clock className="w-4 h-4 text-amber-500" />
+                <span>EPF & ESI Monthly Remittance</span>
+              </div>
+              <span className="text-xs text-amber-600 font-semibold mt-0.5 block">Due Nov 15, 2026 (~21 days)</span>
+            </div>
+
+            <div className="bg-white rounded-2xl border border-gray-200 p-4 shadow-xs">
+              <span className="text-[10px] font-bold uppercase tracking-wider text-gray-400">Monitored Statutory Acts</span>
+              <div className="text-sm font-bold text-gray-900 mt-1 flex items-center gap-1.5">
+                <ShieldCheck className="w-4 h-4 text-indigo-600" />
+                <span>8 Acts & Jurisdictions</span>
+              </div>
+              <span className="text-xs text-gray-500 mt-0.5 block">Income Tax, EPF, CLRA, FSSAI, PCB</span>
+            </div>
+
+            <div className="bg-white rounded-2xl border border-gray-200 p-4 shadow-xs">
+              <span className="text-[10px] font-bold uppercase tracking-wider text-gray-400">Facility Scope</span>
+              <div className="text-sm font-bold text-gray-900 mt-1 truncate">
+                {selectedLoc?.name}
+              </div>
+              <span className="text-xs text-indigo-600 font-semibold mt-0.5 block">{selectedLoc?.state} &bull; {selectedLoc?.type}</span>
+            </div>
+
+            <div className="bg-white rounded-2xl border border-gray-200 p-4 shadow-xs">
+              <span className="text-[10px] font-bold uppercase tracking-wider text-gray-400">Readiness Health</span>
+              <div className="text-sm font-bold text-emerald-600 mt-1 flex items-center gap-1.5">
+                <CheckCircle2 className="w-4 h-4 text-emerald-600" />
+                <span>Active Monitoring</span>
+              </div>
+              <span className="text-xs text-gray-500 mt-0.5 block">Auto-alerts enabled for all milestones</span>
+            </div>
+          </div>
+
+          {/* Category Filter Pills */}
+          <div className="flex flex-wrap items-center gap-2">
+            {["ALL", "TAX", "LABOUR", "MUNICIPAL", "ENVIRONMENTAL"].map((cat) => (
+              <button
+                key={cat}
+                onClick={() => setCalendarFilter(cat)}
+                className={`px-3 py-1.5 rounded-xl text-xs font-semibold transition-all cursor-pointer ${
+                  calendarFilter === cat
+                    ? "bg-slate-900 text-white shadow-xs"
+                    : "bg-white border border-gray-200 text-gray-600 hover:bg-gray-50"
+                }`}
+              >
+                {cat === "ALL" ? "All Statutory Filings (8)" : cat}
+              </button>
+            ))}
+          </div>
+
+          {/* Calendar Events Grid */}
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+            {STATUTORY_CALENDAR_EVENTS
+              .filter((ev) => calendarFilter === "ALL" || ev.category === calendarFilter)
+              .map((ev) => {
+                const now = new Date();
+                const due = new Date(ev.dueDate);
+                const diffDays = Math.ceil((due - now) / (1000 * 60 * 60 * 24));
+
+                const matchingDoc = locDocs.find((d) =>
+                  ev.matchedCodes.some((code) => d.license_type?.code === code || (d.file_name && d.file_name.toLowerCase().includes(code.toLowerCase())))
+                );
+                const isCovered = !!matchingDoc;
+
+                return (
+                  <div
+                    key={ev.id}
+                    className="bg-white rounded-2xl border border-gray-200/90 p-5 shadow-xs flex flex-col justify-between hover:border-indigo-200 transition-all"
+                  >
+                    <div>
+                      <div className="flex items-start justify-between gap-2 mb-2">
+                        <span className={`text-[10px] font-bold uppercase tracking-wider px-2 py-0.5 rounded-md ${
+                          ev.category === "TAX" ? "bg-emerald-50 text-emerald-700" :
+                          ev.category === "LABOUR" ? "bg-blue-50 text-blue-700" :
+                          ev.category === "MUNICIPAL" ? "bg-amber-50 text-amber-700" :
+                          "bg-purple-50 text-purple-700"
+                        }`}>
+                          {ev.category} &bull; {ev.frequency}
+                        </span>
+
+                        <span className="text-xs font-semibold text-gray-500 flex items-center gap-1 font-mono">
+                          <Calendar className="w-3.5 h-3.5 text-indigo-500" />
+                          {ev.dueDate}
+                        </span>
+                      </div>
+
+                      <h3 className="text-sm font-bold text-gray-900 leading-snug">{ev.title}</h3>
+                      <p className="text-[11px] text-gray-500 mt-1 leading-relaxed">{ev.description}</p>
+
+                      <div className="mt-3 text-[10px] text-gray-600 bg-gray-50 p-2 rounded-lg font-medium">
+                        <span className="font-bold text-gray-700">Governing Act:</span> {ev.statutoryAct}
+                      </div>
+                    </div>
+
+                    <div className="mt-4 pt-3 border-t border-gray-100 flex items-center justify-between text-xs">
+                      <span className={`font-semibold ${diffDays <= 30 ? "text-amber-600" : "text-gray-500"}`}>
+                        {diffDays > 0 ? `In ${diffDays} days` : "Due today"}
+                      </span>
+
+                      {isCovered ? (
+                        <span className="inline-flex items-center gap-1 px-2.5 py-1 rounded-full bg-emerald-50 text-emerald-700 border border-emerald-200 text-[11px] font-bold">
+                          <CheckCircle2 className="w-3.5 h-3.5" />
+                          Certificate On File
+                        </span>
+                      ) : (
+                        <span className="inline-flex items-center gap-1 px-2.5 py-1 rounded-full bg-amber-50 text-amber-700 border border-amber-200 text-[11px] font-bold">
+                          <AlertTriangle className="w-3.5 h-3.5" />
+                          Filing Required
+                        </span>
+                      )}
+                    </div>
+                  </div>
+                );
+              })}
+          </div>
+        </div>
+      ) : (
+        /* Main Scorecard & Breakdown */
+        isSwitchingFacility ? (
         <BufferingLoader
           title="Recalculating Compliance Profile..."
           message={`Evaluating filings, risk chains, and behind-the-scenes statutory audit for ${
@@ -461,7 +707,7 @@ export default function ComplianceScore() {
           {/* Historical Trend Chart */}
           <TrendChart locationName={selectedLoc?.name} history={scoreHistory} />
         </>
-      )}
+      ))}
     </div>
   );
 }

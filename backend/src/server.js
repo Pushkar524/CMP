@@ -26,11 +26,18 @@ const server = app.listen(PORT, async () => {
 });
 
 // Graceful Shutdown
-process.on('SIGINT', async () => {
-  console.log('\n[Compliance Platform] Shutting down gracefully...');
-  await prisma.$disconnect();
+const handleShutdown = async (signal) => {
+  console.log(`\n[Compliance Platform] Received ${signal}. Shutting down gracefully...`);
+  try {
+    await prisma.$disconnect();
+  } catch (err) {
+    console.error('Error disconnecting Prisma:', err.message);
+  }
   server.close(() => {
     console.log('[Compliance Platform] Server closed.');
     process.exit(0);
   });
-});
+};
+
+process.on('SIGINT', () => handleShutdown('SIGINT'));
+process.on('SIGTERM', () => handleShutdown('SIGTERM'));

@@ -66,57 +66,93 @@ class TenancyService {
   /**
    * Creates a new location within the organization (Org Admin only)
    */
-  async createLocation(orgId, { name, managerName, managerEmail, managerPassword }) {
-    if (!name || !managerName || !managerEmail || !managerPassword) {
-      throw new BadRequestError('Store name, manager name, manager email, and security key are required.');
+  async createLocation(orgId, data = {}) {
+    const {
+      name,
+      code,
+      type,
+      state,
+      address,
+      city,
+      pincode,
+      phone,
+      gstin,
+      employee_count,
+      employeeCount,
+      operating_hours,
+      operatingHours,
+      managerName,
+      managerEmail,
+      managerPassword,
+    } = data;
+
+    if (!name || !name.trim()) {
+      throw new BadRequestError('Store/Location name is required.');
     }
 
-    if (managerPassword.length < 8) {
-      throw new BadRequestError('Manager security key must be at least 8 characters long.');
+    const locationData = {
+      org_id: orgId,
+      name: name.trim(),
+      code: code ? code.trim().toUpperCase() : null,
+      type: type ? type.trim().toUpperCase() : 'STORE',
+      state: state ? state.trim() : null,
+      address: address ? address.trim() : null,
+      city: city ? city.trim() : null,
+      pincode: pincode ? pincode.trim() : null,
+      phone: phone ? phone.trim() : null,
+      gstin: gstin ? gstin.trim().toUpperCase() : null,
+      employee_count: employee_count !== undefined ? employee_count : (employeeCount ? Number(employeeCount) : null),
+      operating_hours: operating_hours || operatingHours || null,
+      current_compliance_score: 0.0,
+      profile_completed: Boolean(code && type && state && address),
+    };
+
+    if (managerEmail && managerPassword) {
+      if (managerPassword.length < 8) {
+        throw new BadRequestError('Manager security key must be at least 8 characters long.');
+      }
+
+      const normalizedEmail = managerEmail.toLowerCase().trim();
+      const existingUser = await prisma.user.findUnique({ where: { email: normalizedEmail } });
+      if (existingUser) {
+        throw new ConflictError('A manager with this email address already exists.');
+      }
+
+      const passwordHash = await hashText(managerPassword, 10);
+
+      return await prisma.$transaction(async (tx) => {
+        const location = await tx.location.create({ data: locationData });
+
+        const manager = await tx.user.create({
+          data: {
+            org_id: orgId,
+            name: (managerName || 'Location Manager').trim(),
+            email: normalizedEmail,
+            password_hash: passwordHash,
+            role: 'LOCATION_MANAGER',
+          },
+        });
+
+        await tx.userLocationAccess.create({
+          data: { user_id: manager.id, location_id: location.id },
+        });
+
+        await tx.notificationPreference.createMany({
+          data: ['EXPIRY_WARNING', 'LAPSED_LICENSE', 'CASCADING_RISK'].map((alertType) => ({
+            user_id: manager.id,
+            alert_type: alertType,
+            email_enabled: true,
+            in_app_enabled: true,
+          })),
+        });
+
+        return { location, manager: { id: manager.id, name: manager.name, email: manager.email } };
+      });
     }
 
-    const normalizedEmail = managerEmail.toLowerCase().trim();
-    const existingUser = await prisma.user.findUnique({ where: { email: normalizedEmail } });
-    if (existingUser) {
-      throw new ConflictError('A manager with this email address already exists.');
-    }
-
-    const passwordHash = await hashText(managerPassword, 10);
-
-    return await prisma.$transaction(async (tx) => {
-      const location = await tx.location.create({
-        data: {
-          org_id: orgId,
-          name: name.trim(),
-          current_compliance_score: 0.0,
-        },
-      });
-
-      const manager = await tx.user.create({
-        data: {
-          org_id: orgId,
-          name: managerName.trim(),
-          email: normalizedEmail,
-          password_hash: passwordHash,
-          role: 'LOCATION_MANAGER',
-        },
-      });
-
-      await tx.userLocationAccess.create({
-        data: { user_id: manager.id, location_id: location.id },
-      });
-
-      await tx.notificationPreference.createMany({
-        data: ['EXPIRY_WARNING', 'LAPSED_LICENSE', 'CASCADING_RISK'].map((alertType) => ({
-          user_id: manager.id,
-          alert_type: alertType,
-          email_enabled: true,
-          in_app_enabled: true,
-        })),
-      });
-
-      return { location, manager: { id: manager.id, name: manager.name, email: manager.email } };
-    });
+    // Provision facility directly with full metadata
+    const location = await prisma.location.create({ data: locationData });
+    return { location, manager: null };
   }
 
   /**

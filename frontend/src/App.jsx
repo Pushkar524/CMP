@@ -1,17 +1,20 @@
-import React from "react";
+import { Suspense, lazy } from "react";
 import { BrowserRouter as Router, Routes, Route, Navigate } from "react-router-dom";
 import { AuthProvider, useAuth } from "./context/AuthContext";
 import { NotificationProvider } from "./context/NotificationContext";
 import Layout from "./components/Layout";
 import { WorkspaceLoader } from "./components/Skeletons";
-import Login from "./pages/Auth/Login";
-import Register from "./pages/Auth/Register";
-import Dashboard from "./pages/Dashboard/Dashboard";
-import Locations from "./pages/Locations/Locations";
-import Documents from "./pages/Documents/Documents";
-import ComplianceScore from "./pages/ComplianceScore/ComplianceScore";
-import AuditLinks from "./pages/AuditLinks/AuditLinks";
-import AuditView from "./pages/AuditView/AuditView";
+import ErrorBoundary from "./components/ErrorBoundary";
+
+// Lazy load route pages for performance & code-splitting
+const Login = lazy(() => import("./pages/Auth/Login"));
+const Register = lazy(() => import("./pages/Auth/Register"));
+const Dashboard = lazy(() => import("./pages/Dashboard/Dashboard"));
+const Locations = lazy(() => import("./pages/Locations/Locations"));
+const Documents = lazy(() => import("./pages/Documents/Documents"));
+const ComplianceScore = lazy(() => import("./pages/ComplianceScore/ComplianceScore"));
+const AuditLinks = lazy(() => import("./pages/AuditLinks/AuditLinks"));
+const AuditView = lazy(() => import("./pages/AuditView/AuditView"));
 
 function ProtectedLayout() {
   const { user, loading } = useAuth();
@@ -25,30 +28,34 @@ function ProtectedLayout() {
 
 function App() {
   return (
-    <AuthProvider>
-      <NotificationProvider>
-        <Router>
-          <Routes>
-            {/* Public Auth / Login */}
-            <Route path="/login" element={<Login />} />
-            <Route path="/register" element={<Register />} />
+    <ErrorBoundary>
+      <AuthProvider>
+        <NotificationProvider>
+          <Router>
+            <Suspense fallback={<WorkspaceLoader message="Loading page..." />}>
+              <Routes>
+                {/* Public Auth / Login */}
+                <Route path="/login" element={<Login />} />
+                <Route path="/register" element={<Register />} />
 
-            {/* Public External Inspector Cloud Data Room */}
-            <Route path="/audit/:token" element={<AuditView />} />
+                {/* Public External Inspector Cloud Data Room */}
+                <Route path="/audit/:token" element={<AuditView />} />
 
-            {/* Authenticated Management Platform */}
-            <Route path="/" element={<ProtectedLayout />}>
-              <Route index element={<Navigate to="/dashboard" replace />} />
-              <Route path="dashboard" element={<Dashboard />} />
-              <Route path="locations" element={<Locations />} />
-              <Route path="documents" element={<Documents />} />
-              <Route path="compliance" element={<ComplianceScore />} />
-              <Route path="audit-links" element={<AuditLinks />} />
-            </Route>
-          </Routes>
-        </Router>
-      </NotificationProvider>
-    </AuthProvider>
+                {/* Authenticated Management Platform */}
+                <Route path="/" element={<ProtectedLayout />}>
+                  <Route index element={<Navigate to="/dashboard" replace />} />
+                  <Route path="dashboard" element={<Dashboard />} />
+                  <Route path="locations" element={<Locations />} />
+                  <Route path="documents" element={<Documents />} />
+                  <Route path="compliance" element={<ComplianceScore />} />
+                  <Route path="audit-links" element={<AuditLinks />} />
+                </Route>
+              </Routes>
+            </Suspense>
+          </Router>
+        </NotificationProvider>
+      </AuthProvider>
+    </ErrorBoundary>
   );
 }
 

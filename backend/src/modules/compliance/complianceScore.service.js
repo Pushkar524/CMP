@@ -1,5 +1,6 @@
 const prisma = require('../../config/db');
 const { NotFoundError } = require('../../utils/errors');
+const intelligenceService = require('../intelligence/intelligence.service');
 
 class ComplianceScoreService {
   /**
@@ -205,7 +206,6 @@ class ComplianceScoreService {
     }
 
     // 3.5. Evaluate Cascading Dependency Failures via Intelligence Engine
-    const intelligenceService = require('../intelligence/intelligence.service');
     const graphData = await intelligenceService.getLocationDependencyGraph(locationId, orgId);
 
     // Group active risk chains by target license to prevent duplicate risk items
@@ -369,8 +369,14 @@ class ComplianceScoreService {
     let totalMissing = 0;
     let totalRequired = 0;
 
-    for (const loc of locations) {
-      const res = await this.calculateLocationScore(loc.id, orgId);
+    const results = await Promise.all(
+      locations.map(async (loc) => {
+        const res = await this.calculateLocationScore(loc.id, orgId);
+        return { loc, res };
+      })
+    );
+
+    for (const { loc, res } of results) {
       locationScores.push({
         locationId: loc.id,
         name: loc.name,

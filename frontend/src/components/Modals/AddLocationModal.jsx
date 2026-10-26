@@ -48,7 +48,6 @@ export default function AddLocationModal({ isOpen, onClose, onAdd }) {
       gstin,
       employeeCount: employeeCount ? Number(employeeCount) : null,
       operatingHours,
-      org_id: "org-1",
     });
     onClose();
   };

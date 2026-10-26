@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from "react";
+import { useState, useEffect } from "react";
 import { Link } from "react-router-dom";
 import {
   Activity,
@@ -7,9 +7,7 @@ import {
   ShieldAlert,
   ArrowRight,
   Upload,
-  RefreshCw,
-  Building,
-  CheckCircle2
+  RefreshCw
 } from "lucide-react";
 import { api } from "../../services/api";
 import { useAuth } from "../../context/AuthContext";
@@ -18,33 +16,29 @@ import UploadDocumentModal from "../../components/Modals/UploadDocumentModal";
 import { DashboardSkeleton } from "../../components/Skeletons";
 
 export default function Dashboard() {
-  const { currentOrg, canAccessLocation } = useAuth();
+  const { canAccessLocation } = useAuth();
   const [locations, setLocations] = useState([]);
   const [documents, setDocuments] = useState([]);
   const [licenseTypes, setLicenseTypes] = useState([]);
-  const [dependencies, setDependencies] = useState([]);
   const [showUploadModal, setShowUploadModal] = useState(false);
   const [isRecalculating, setIsRecalculating] = useState(false);
   const [isLoading, setIsLoading] = useState(true);
 
   const loadData = async () => {
     try {
-      const [nextLocations, nextDocuments, nextLicenseTypes, nextDependencies] = await Promise.all([
+      const [nextLocations, nextDocuments, nextLicenseTypes] = await Promise.all([
         api.getLocations(),
         api.getDocuments(),
         api.getLicenseTypes(),
-        api.getDependencies(),
       ]);
       setLocations(Array.isArray(nextLocations) ? nextLocations : []);
       setDocuments(Array.isArray(nextDocuments) ? nextDocuments : []);
       setLicenseTypes(Array.isArray(nextLicenseTypes) ? nextLicenseTypes : []);
-      setDependencies(Array.isArray(nextDependencies) ? nextDependencies : []);
     } catch (error) {
       console.error("Dashboard data loading failed", error);
       setLocations([]);
       setDocuments([]);
       setLicenseTypes([]);
-      setDependencies([]);
     } finally {
       setIsLoading(false);
     }
@@ -65,15 +59,16 @@ export default function Dashboard() {
   const pendingCount = documents.filter(d => d.status === "PENDING_VERIFICATION").length;
   const verifiedCount = documents.filter(d => d.status === "VERIFIED").length;
 
-  const handleRecalculateScores = () => {
-    setIsRecalculating(true);
-    setTimeout(() => {
-      visibleLocations.forEach(loc => {
-        api.calculateLocationScore(loc.id);
-      });
-      loadData();
+  const handleRecalculateScores = async () => {
+    try {
+      setIsRecalculating(true);
+      await Promise.all(visibleLocations.map(loc => api.calculateLocationScore(loc.id)));
+      await loadData();
+    } catch (err) {
+      console.error("Recalculation error:", err);
+    } finally {
       setIsRecalculating(false);
-    }, 500);
+    }
   };
 
   const handleUploadSuccess = async (docData, file) => {

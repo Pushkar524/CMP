@@ -6,8 +6,18 @@ const config = {
   nodeEnv: process.env.NODE_ENV || 'development',
   
   // Critical: These must be set in .env - no defaults for security
-  databaseUrl: process.env.DATABASE_URL || process.exit(1),
-  jwtSecret: process.env.JWT_SECRET || process.exit(1),
+  databaseUrl: (() => {
+    if (!process.env.DATABASE_URL) {
+      throw new Error('[FATAL] DATABASE_URL environment variable is required.');
+    }
+    return process.env.DATABASE_URL;
+  })(),
+  jwtSecret: (() => {
+    if (!process.env.JWT_SECRET) {
+      throw new Error('[FATAL] JWT_SECRET environment variable is required.');
+    }
+    return process.env.JWT_SECRET;
+  })(),
   jwtExpiresIn: process.env.JWT_EXPIRES_IN || '7d',
   
   // Storage provider configuration

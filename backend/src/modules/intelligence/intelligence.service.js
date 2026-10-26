@@ -156,6 +156,16 @@ class IntelligenceService {
    * Helper to detect directed cycles in the dependency graph using BFS
    */
   async _detectCycle(startNodeId, targetNodeId) {
+    const allDeps = await prisma.dependency.findMany({
+      select: { license_type_id: true, prerequisite_license_type_id: true },
+    });
+
+    const adjMap = new Map();
+    for (const d of allDeps) {
+      if (!adjMap.has(d.license_type_id)) adjMap.set(d.license_type_id, []);
+      adjMap.get(d.license_type_id).push(d.prerequisite_license_type_id);
+    }
+
     const visited = new Set();
     const queue = [startNodeId];
 
@@ -165,13 +175,9 @@ class IntelligenceService {
 
       if (!visited.has(current)) {
         visited.add(current);
-        const dependencies = await prisma.dependency.findMany({
-          where: { license_type_id: current },
-          select: { prerequisite_license_type_id: true },
-        });
-
-        for (const dep of dependencies) {
-          queue.push(dep.prerequisite_license_type_id);
+        const neighbors = adjMap.get(current) || [];
+        for (const prereqId of neighbors) {
+          queue.push(prereqId);
         }
       }
     }

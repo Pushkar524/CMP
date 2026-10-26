@@ -1,5 +1,5 @@
 import React, { useState } from "react";
-import { Outlet, Link, useLocation } from "react-router-dom";
+import { Outlet, Link, useLocation, useNavigate } from "react-router-dom";
 import {
   LayoutDashboard,
   MapPin,
@@ -21,12 +21,19 @@ import { WorkspaceLoader } from "./Skeletons";
 
 export default function Layout() {
   const location = useLocation();
-  const { user, allUsers, currentOrg, organizations, switchUser, switchOrg, isOrgAdmin, isLocationManager } = useAuth();
-  const { unreadCount } = useNotifications();
+  const navigate = useNavigate();
+  const { user, allUsers, currentOrg, organizations, switchUser, switchOrg, isOrgAdmin, isLocationManager, logout } = useAuth();
+  const { unreadCount, clearNotifications } = useNotifications();
   const [showNotifModal, setShowNotifModal] = useState(false);
   const [showSettingsModal, setShowSettingsModal] = useState(false);
   const [showRoleMenu, setShowRoleMenu] = useState(false);
   const [showOrgMenu, setShowOrgMenu] = useState(false);
+
+  const handleSignOut = () => {
+    logout();
+    if (clearNotifications) clearNotifications();
+    navigate('/login', { replace: true });
+  };
 
   if (!user || !currentOrg) {
     return <WorkspaceLoader message="Loading workspace profile..." />;
@@ -153,8 +160,8 @@ export default function Layout() {
                 {allUsers.map((u) => (
                   <button
                     key={u.id}
-                    onClick={() => {
-                      switchUser(u.id);
+                    onClick={async () => {
+                      await switchUser(u.id);
                       setShowRoleMenu(false);
                     }}
                     className={`w-full text-left px-3 py-2 text-xs transition-colors flex flex-col ${
@@ -178,14 +185,14 @@ export default function Layout() {
               <Settings className="w-3.5 h-3.5 text-indigo-400" />
               <span>Settings</span>
             </button>
-            <Link
-              to="/login"
-              className="flex-1 flex items-center justify-center gap-1.5 px-2.5 py-1.5 text-xs font-semibold text-slate-400 hover:text-rose-400 hover:bg-slate-800 rounded-lg transition-colors"
+            <button
+              onClick={handleSignOut}
+              className="flex-1 flex items-center justify-center gap-1.5 px-2.5 py-1.5 text-xs font-semibold text-slate-400 hover:text-rose-400 hover:bg-slate-800 rounded-lg transition-colors cursor-pointer"
               title="Sign Out"
             >
               <LogOut className="w-3.5 h-3.5" />
               <span className="sidebar-signout-label">Sign Out</span>
-            </Link>
+            </button>
           </div>
         </div>
       </aside>

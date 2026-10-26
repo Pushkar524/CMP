@@ -46,6 +46,12 @@ async function fetchAPI(endpoint, options = {}) {
   }
 
   if (!response.ok) {
+    if (response.status === 401 && !endpoint.includes('/auth/login')) {
+      localStorage.removeItem('sclip_auth_token');
+      localStorage.removeItem('sclip_user_id');
+      localStorage.removeItem('sclip_user');
+    }
+
     let message = typeof data === 'object' && data.message
       ? data.message
       : typeof data === 'string' && data.length > 0
@@ -193,12 +199,6 @@ export const compliance = {
     const response = await fetchAPI(`/api/compliance/locations/${locationId}/recalculate`, {
       method: 'POST',
     });
-    return response.data;
-  },
-
-  getLocationHistory: async (locationId, limit) => {
-    const params = limit ? `?limit=${limit}` : '';
-    const response = await fetchAPI(`/api/compliance/locations/${locationId}/history${params}`);
     return response.data;
   },
 
@@ -440,8 +440,8 @@ export const auditLinks = {
   },
 
   getAuditByToken: async (token, pin = '') => {
-    const query = pin ? `?pin=${encodeURIComponent(pin)}` : '';
-    return await fetchAPI(`/api/audit-links/by-token/${token}${query}`);
+    const headers = pin ? { 'x-audit-pin': pin } : {};
+    return await fetchAPI(`/api/audit-links/by-token/${token}`, { headers });
   },
 
   recordAuditAccess: async (token, payload = {}) => {
@@ -499,8 +499,6 @@ export const api = {
     return Array.isArray(data) ? data : [];
   },
 
-  saveLocations: () => {},
-
   addLocation: async (loc) => {
     const result = await tenancy.createLocation(loc);
     return result;
@@ -528,12 +526,10 @@ export const api = {
   },
 
   // --- Documents ---
-  getDocuments: async () => {
-    const data = await documents.getDocuments();
+  getDocuments: async (params) => {
+    const data = await documents.getDocuments(params);
     return data.documents || [];
   },
-
-  saveDocuments: () => {},
 
   uploadDocument: async (docData, file) => {
     const result = await documents.uploadDocument(docData, file);

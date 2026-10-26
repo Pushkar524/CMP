@@ -49,8 +49,9 @@ export default function CreateAuditLinkModal({ isOpen, onClose, onCreate, docume
 
   return (
     <div className="fixed inset-0 z-50 overflow-y-auto bg-black/50 backdrop-blur-xs flex items-center justify-center p-4">
-      <div className="bg-white rounded-2xl max-w-lg w-full p-6 shadow-2xl border border-gray-100 animate-in fade-in zoom-in-95 duration-200">
-        <div className="flex items-center justify-between pb-4 border-b border-gray-100">
+      <div className="bg-white rounded-2xl max-w-lg w-full shadow-2xl border border-gray-100 animate-in fade-in zoom-in-95 duration-200 flex flex-col max-h-[90vh]">
+        {/* Header */}
+        <div className="flex items-center justify-between p-6 pb-4 border-b border-gray-100 shrink-0">
           <div className="flex items-center gap-2.5">
             <div className="p-2 bg-indigo-50 text-indigo-600 rounded-lg">
               <Link2 className="w-5 h-5" />
@@ -60,12 +61,13 @@ export default function CreateAuditLinkModal({ isOpen, onClose, onCreate, docume
               <p className="text-xs text-gray-500">Scoped, time-bound inspector access</p>
             </div>
           </div>
-          <button onClick={onClose} className="p-1 rounded-lg text-gray-400 hover:text-gray-600 hover:bg-gray-100">
+          <button onClick={onClose} className="p-1 rounded-lg text-gray-400 hover:text-gray-600 hover:bg-gray-100 cursor-pointer">
             <X className="w-5 h-5" />
           </button>
         </div>
 
-        <form onSubmit={handleSubmit} className="mt-4 space-y-4">
+        {/* Scrollable Form Body */}
+        <form id="create-audit-link-form" onSubmit={handleSubmit} className="overflow-y-auto px-6 py-4 flex-1 space-y-4">
           <div>
             <label className="block text-xs font-bold text-gray-700 uppercase tracking-wider mb-1">
               Audit Data Room Title
@@ -93,7 +95,7 @@ export default function CreateAuditLinkModal({ isOpen, onClose, onCreate, docume
             />
           </div>
 
-          <div className="grid grid-cols-2 gap-3">
+          <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
             <div>
               <label className="block text-xs font-bold text-gray-700 uppercase tracking-wider mb-1">
                 Link Expiry Window
@@ -101,7 +103,7 @@ export default function CreateAuditLinkModal({ isOpen, onClose, onCreate, docume
               <select
                 value={validityDays}
                 onChange={(e) => setValidityDays(Number(e.target.value))}
-                className="w-full text-sm border border-gray-300 rounded-lg px-3 py-2 bg-white focus:ring-2 focus:ring-indigo-500 focus:outline-hidden"
+                className="w-full text-sm border border-gray-300 rounded-lg px-3 py-2 bg-white focus:ring-2 focus:ring-indigo-500 focus:outline-hidden cursor-pointer"
               >
                 <option value={1}>24 Hours</option>
                 <option value={3}>3 Days</option>
@@ -112,30 +114,41 @@ export default function CreateAuditLinkModal({ isOpen, onClose, onCreate, docume
             </div>
 
             <div>
-              <div className="flex items-center justify-between mb-1">
-                <label className="text-xs font-bold text-gray-700 uppercase tracking-wider">
-                  PIN Protection
-                </label>
-                <label className="flex items-center gap-1 text-[11px] text-indigo-600 font-medium cursor-pointer">
-                  <input
-                    type="checkbox"
-                    checked={hasPin}
-                    onChange={(e) => setHasPin(e.target.checked)}
-                    className="rounded text-indigo-600"
-                  />
-                  Require PIN
-                </label>
+              <label className="block text-xs font-bold text-gray-700 uppercase tracking-wider mb-1">
+                Security PIN Code
+              </label>
+              <div
+                className={`p-2.5 rounded-xl border transition-all ${
+                  hasPin ? "border-indigo-300 bg-indigo-50/40" : "border-gray-200 bg-gray-50/40"
+                }`}
+              >
+                <div className="flex items-center justify-between mb-1.5">
+                  <label
+                    htmlFor="pin-toggle-checkbox"
+                    className="flex items-center gap-2 text-xs font-semibold text-gray-800 cursor-pointer select-none"
+                  >
+                    <input
+                      id="pin-toggle-checkbox"
+                      type="checkbox"
+                      checked={hasPin}
+                      onChange={(e) => setHasPin(e.target.checked)}
+                      className="w-3.5 h-3.5 rounded text-indigo-600 focus:ring-indigo-500 cursor-pointer"
+                    />
+                    <span>Require PIN Protection</span>
+                  </label>
+                  <KeyRound className={`w-3.5 h-3.5 ${hasPin ? "text-indigo-600" : "text-gray-400"}`} />
+                </div>
+                <input
+                  type="text"
+                  disabled={!hasPin}
+                  maxLength={6}
+                  value={pin}
+                  onChange={(e) => setPin(e.target.value)}
+                  placeholder={hasPin ? "Enter 4-6 digit PIN" : "No PIN required"}
+                  className="w-full text-xs border border-gray-300 rounded-lg px-2.5 py-1.5 focus:ring-2 focus:ring-indigo-500 focus:outline-hidden disabled:bg-gray-100 disabled:text-gray-400 font-mono tracking-wider"
+                  required={hasPin}
+                />
               </div>
-              <input
-                type="text"
-                disabled={!hasPin}
-                maxLength={6}
-                value={pin}
-                onChange={(e) => setPin(e.target.value)}
-                placeholder={hasPin ? "Enter 4-6 digit PIN" : "No PIN required"}
-                className="w-full text-sm border border-gray-300 rounded-lg px-3 py-2 focus:ring-2 focus:ring-indigo-500 focus:outline-hidden disabled:bg-gray-100 disabled:text-gray-400"
-                required={hasPin}
-              />
             </div>
           </div>
 
@@ -148,12 +161,12 @@ export default function CreateAuditLinkModal({ isOpen, onClose, onCreate, docume
               <button
                 type="button"
                 onClick={selectAll}
-                className="text-[11px] text-indigo-600 hover:text-indigo-800 font-semibold"
+                className="text-[11px] text-indigo-600 hover:text-indigo-800 font-semibold cursor-pointer"
               >
                 {selectedDocs.length === documents.length ? "Deselect All" : "Select All"}
               </button>
             </div>
-            <div className="max-h-40 overflow-y-auto border border-gray-200 rounded-xl divide-y divide-gray-100 bg-gray-50/50 p-1">
+            <div className="max-h-44 overflow-y-auto border border-gray-200 rounded-xl divide-y divide-gray-100 bg-gray-50/50 p-1">
               {documents.map((doc) => {
                 const isSelected = selectedDocs.includes(doc.id);
                 return (
@@ -170,7 +183,7 @@ export default function CreateAuditLinkModal({ isOpen, onClose, onCreate, docume
                       ) : (
                         <Square className="w-4 h-4 text-gray-400 shrink-0" />
                       )}
-                      <span className="truncate">{doc.license_name} ({doc.file_name})</span>
+                      <span className="truncate">{doc.license_name || doc.file_name} ({doc.file_name})</span>
                     </div>
                     <span className="text-[10px] uppercase font-bold text-gray-500 ml-2 shrink-0">
                       {doc.status}
@@ -180,24 +193,26 @@ export default function CreateAuditLinkModal({ isOpen, onClose, onCreate, docume
               })}
             </div>
           </div>
-
-          <div className="pt-3 border-t border-gray-100 flex items-center justify-end gap-3">
-            <button
-              type="button"
-              onClick={onClose}
-              className="px-4 py-2 text-xs font-medium text-gray-700 bg-gray-100 hover:bg-gray-200 rounded-lg"
-            >
-              Cancel
-            </button>
-            <button
-              type="submit"
-              className="px-5 py-2 text-xs font-bold text-white bg-indigo-600 hover:bg-indigo-700 rounded-lg shadow-sm transition-colors flex items-center gap-1.5"
-            >
-              <Link2 className="w-4 h-4" />
-              Generate Audit Room Link
-            </button>
-          </div>
         </form>
+
+        {/* Sticky Frosted-Glass Footer */}
+        <div className="px-6 py-4 border-t border-gray-100 flex items-center justify-end gap-3 shrink-0 bg-gray-50/80 backdrop-blur-xs rounded-b-2xl">
+          <button
+            type="button"
+            onClick={onClose}
+            className="px-4 py-2 text-xs font-medium text-gray-700 bg-white hover:bg-gray-100 border border-gray-200 rounded-lg cursor-pointer"
+          >
+            Cancel
+          </button>
+          <button
+            form="create-audit-link-form"
+            type="submit"
+            className="px-5 py-2 text-xs font-bold text-white bg-indigo-600 hover:bg-indigo-700 rounded-lg shadow-sm transition-colors flex items-center gap-1.5 cursor-pointer"
+          >
+            <Link2 className="w-4 h-4" />
+            Generate Audit Room Link
+          </button>
+        </div>
       </div>
     </div>
   );

@@ -61,10 +61,14 @@ export const AuthProvider = ({ children }) => {
     return response;
   };
 
-  const switchUser = (userId) => {
-    api.setCurrentUser(userId);
+  const switchUser = async (userId) => {
     const selected = allUsers?.find(u => u.id === userId);
-    if (selected) {
+    if (!selected) return;
+
+    try {
+      await login(selected.email, "Password@123");
+    } catch {
+      api.setCurrentUser(userId);
       setUser(selected);
     }
   };
@@ -88,6 +92,14 @@ export const AuthProvider = ({ children }) => {
     return false;
   };
 
+  const logout = () => {
+    auth.logout();
+    setUser(null);
+    setAllUsers([]);
+    setOrganizations([]);
+    setCurrentOrg(null);
+  };
+
   // Provide loading state for components to check
   const value = {
     user,
@@ -96,6 +108,7 @@ export const AuthProvider = ({ children }) => {
     currentOrg,
     loading,
     login,
+    logout,
     switchUser,
     switchOrg,
     isOrgAdmin,

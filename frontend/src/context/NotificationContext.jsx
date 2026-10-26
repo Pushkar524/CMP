@@ -147,6 +147,7 @@ export const NotificationProvider = ({ children }) => {
     triggerTestAlert,
     runSweep,
     refreshNotifications: fetchNotificationsAndPrefs,
+    clearNotifications: () => setNotifications([]),
     loading,
   };
 

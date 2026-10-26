@@ -2,6 +2,7 @@ const prisma = require('../../config/db');
 const storageService = require('../../services/StorageService');
 const { BadRequestError, NotFoundError, ForbiddenError } = require('../../utils/errors');
 const crypto = require('crypto');
+const notificationService = require('../notifications/notification.service');
 
 class DocumentService {
   /**
@@ -9,7 +10,7 @@ class DocumentService {
    * ORG_ADMIN → all org documents
    * LOCATION_MANAGER → only documents for their assigned locations
    */
-  async getDocuments(user) {
+  async getDocuments(user, query = {}) {
     const where = { org_id: user.org_id };
 
     if (user.role === 'LOCATION_MANAGER') {
@@ -19,7 +20,17 @@ class DocumentService {
       ];
     }
 
-    const docs = await prisma.document.findMany({
+    if (query.location_id) {
+      where.location_id = query.location_id;
+    }
+    if (query.status) {
+      where.status = query.status;
+    }
+
+    const page = query.page ? Math.max(1, parseInt(query.page, 10)) : null;
+    const limit = query.limit ? Math.max(1, parseInt(query.limit, 10)) : null;
+
+    const findOptions = {
       where,
       include: {
         license_type: { select: { id: true, name: true, code: true } },
@@ -28,8 +39,27 @@ class DocumentService {
         verified_by: { select: { id: true, name: true } },
       },
       orderBy: { created_at: 'desc' },
-    });
+    };
 
+    if (page && limit) {
+      findOptions.skip = (page - 1) * limit;
+      findOptions.take = limit;
+      const [docs, total] = await Promise.all([
+        prisma.document.findMany(findOptions),
+        prisma.document.count({ where }),
+      ]);
+      return {
+        documents: docs,
+        pagination: {
+          total,
+          page,
+          limit,
+          totalPages: Math.ceil(total / limit),
+        },
+      };
+    }
+
+    const docs = await prisma.document.findMany(findOptions);
     return docs;
   }
 
@@ -142,7 +172,6 @@ class DocumentService {
 
     if (doc.uploaded_by_id) {
       try {
-        const notificationService = require('../notifications/notification.service');
         await notificationService.createInAppNotification({
           userId: doc.uploaded_by_id,
           orgId: user.org_id,

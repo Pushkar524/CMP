@@ -12,7 +12,17 @@ async function authenticateJWT(req, res, next) {
     if (authHeader && authHeader.startsWith('Bearer ')) {
       token = authHeader.split(' ')[1];
     } else if (req.query && req.query.token) {
-      token = req.query.token;
+      // Restrict query-based tokens strictly to read-only document asset streaming endpoints (e.g. browser <img> or <iframe preview>)
+      const isFileStreamingRoute = req.method === 'GET' && (
+        req.path.endsWith('/file') ||
+        req.path.endsWith('/download') ||
+        req.originalUrl.includes('/documents/')
+      );
+      if (isFileStreamingRoute) {
+        token = req.query.token;
+      } else {
+        throw new UnauthorizedError('Passing authentication tokens via query parameters is not permitted for this endpoint. Use the Authorization header.');
+      }
     }
 
     if (!token) {

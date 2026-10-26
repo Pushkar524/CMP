@@ -310,41 +310,43 @@ class NotificationService {
   async updateUserPreferences(userId, prefs) {
     const alertTypes = ['EXPIRY_WARNING', 'LAPSED_LICENSE', 'CASCADING_RISK'];
 
-    for (const alertType of alertTypes) {
-      const typeEnabled =
-        alertType === 'EXPIRY_WARNING'
-          ? prefs.expiry_warning !== false
-          : alertType === 'LAPSED_LICENSE'
-          ? prefs.lapsed_license !== false
-          : alertType === 'CASCADING_RISK'
-          ? prefs.cascading_risk !== false
-          : true;
+    await Promise.all(
+      alertTypes.map((alertType) => {
+        const typeEnabled =
+          alertType === 'EXPIRY_WARNING'
+            ? prefs.expiry_warning !== false
+            : alertType === 'LAPSED_LICENSE'
+            ? prefs.lapsed_license !== false
+            : alertType === 'CASCADING_RISK'
+            ? prefs.cascading_risk !== false
+            : true;
 
-      const emailEnabled = Boolean(prefs.email_enabled && typeEnabled);
-      const smsEnabled = Boolean(prefs.sms_enabled && typeEnabled);
-      const inAppEnabled = Boolean(prefs.in_app_enabled && typeEnabled);
+        const emailEnabled = Boolean(prefs.email_enabled && typeEnabled);
+        const smsEnabled = Boolean(prefs.sms_enabled && typeEnabled);
+        const inAppEnabled = Boolean(prefs.in_app_enabled && typeEnabled);
 
-      await prisma.notificationPreference.upsert({
-        where: {
-          user_id_alert_type: {
+        return prisma.notificationPreference.upsert({
+          where: {
+            user_id_alert_type: {
+              user_id: userId,
+              alert_type: alertType,
+            },
+          },
+          create: {
             user_id: userId,
             alert_type: alertType,
+            email_enabled: emailEnabled,
+            sms_enabled: smsEnabled,
+            in_app_enabled: inAppEnabled,
           },
-        },
-        create: {
-          user_id: userId,
-          alert_type: alertType,
-          email_enabled: emailEnabled,
-          sms_enabled: smsEnabled,
-          in_app_enabled: inAppEnabled,
-        },
-        update: {
-          email_enabled: emailEnabled,
-          sms_enabled: smsEnabled,
-          in_app_enabled: inAppEnabled,
-        },
-      });
-    }
+          update: {
+            email_enabled: emailEnabled,
+            sms_enabled: smsEnabled,
+            in_app_enabled: inAppEnabled,
+          },
+        });
+      })
+    );
 
     return await this.getUserPreferences(userId);
   }
