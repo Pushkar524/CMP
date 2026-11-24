@@ -16,9 +16,12 @@ import {
   Save,
   Key,
   Calendar,
-  Cloud
+  Cloud,
+  Users,
+  UserPlus
 } from "lucide-react";
 import { useAuth } from "../../context/AuthContext";
+import { api } from "../../services/api";
 
 const DEFAULT_SETTINGS = {
   // General / Org Profile
@@ -59,6 +62,17 @@ export default function SettingsModal({ isOpen, onClose }) {
   const [activeTab, setActiveTab] = useState("general");
   const [settings, setSettings] = useState(DEFAULT_SETTINGS);
   const [isSaved, setIsSaved] = useState(false);
+  const [organizationUsers, setOrganizationUsers] = useState([]);
+  const [availableLocations, setAvailableLocations] = useState([]);
+  const [userForm, setUserForm] = useState({
+    name: "",
+    email: "",
+    password: "",
+    role: "LOCATION_MANAGER",
+    locationIds: [],
+  });
+  const [isCreatingUser, setIsCreatingUser] = useState(false);
+  const [userFormStatus, setUserFormStatus] = useState("");
 
   // Load saved settings from localStorage
   useEffect(() => {
@@ -83,6 +97,22 @@ export default function SettingsModal({ isOpen, onClose }) {
       // ignore JSON parse error
     }
   }, [isOpen, currentOrg]);
+
+  useEffect(() => {
+    if (!isOpen || !isOrgAdmin) return;
+    (async () => {
+      try {
+        const [users, locations] = await Promise.all([
+          api.getUsers(),
+          api.getLocations(),
+        ]);
+        setOrganizationUsers(Array.isArray(users) ? users : []);
+        setAvailableLocations(Array.isArray(locations) ? locations : []);
+      } catch (error) {
+        setUserFormStatus(error.message || "Could not load organization users and locations.");
+      }
+    })();
+  }, [isOpen, isOrgAdmin]);
 
   if (!isOpen) return null;
 
@@ -119,10 +149,58 @@ export default function SettingsModal({ isOpen, onClose }) {
     }
   };
 
+  const handleCreateUser = async (event) => {
+    event.preventDefault();
+    setUserFormStatus("");
+
+    if (!userForm.name.trim() || !userForm.email.trim() || userForm.password.length < 8) {
+      setUserFormStatus("Enter a name, valid email, and password with at least 8 characters.");
+      return;
+    }
+    if (userForm.role === "LOCATION_MANAGER" && userForm.locationIds.length === 0) {
+      setUserFormStatus("Select at least one location for a location manager.");
+      return;
+    }
+
+    setIsCreatingUser(true);
+    try {
+      await api.createUser({
+        name: userForm.name.trim(),
+        email: userForm.email.trim(),
+        password: userForm.password,
+        role: userForm.role,
+        locationIds: userForm.role === "LOCATION_MANAGER" ? userForm.locationIds : [],
+      });
+      setOrganizationUsers(await api.getUsers());
+      setUserForm({
+        name: "",
+        email: "",
+        password: "",
+        role: "LOCATION_MANAGER",
+        locationIds: [],
+      });
+      setUserFormStatus("User account created successfully.");
+    } catch (error) {
+      setUserFormStatus(error.message || "Could not create the user account.");
+    } finally {
+      setIsCreatingUser(false);
+    }
+  };
+
+  const toggleUserLocation = (locationId) => {
+    setUserForm((previous) => ({
+      ...previous,
+      locationIds: previous.locationIds.includes(locationId)
+        ? previous.locationIds.filter((id) => id !== locationId)
+        : [...previous.locationIds, locationId],
+    }));
+  };
+
   const tabs = [
     { id: "general", label: "Organization", icon: Building2 },
     { id: "compliance", label: "Compliance Rules", icon: ShieldCheck },
     { id: "security", label: "Security & RBAC", icon: Lock },
+    ...(isOrgAdmin ? [{ id: "users", label: "Users & Access", icon: Users }] : []),
     { id: "alerts", label: "Alerts & Channels", icon: Bell },
     { id: "storage", label: "Storage & Cloud", icon: Database },
   ];
@@ -422,7 +500,145 @@ export default function SettingsModal({ isOpen, onClose }) {
             </div>
           )}
 
-          {/* TAB 4: ALERTS & CHANNELS */}
+          {/* TAB 4: USER & LOCATION ACCESS */}
+          {activeTab === "users" && isOrgAdmin && (
+            <div className="space-y-4 text-xs">
+              <form onSubmit={handleCreateUser} className="p-4 rounded-xl border border-gray-200 bg-gray-50 space-y-3">
+                <div className="flex items-center gap-2">
+                  <UserPlus className="w-4 h-4 text-indigo-600" />
+                  <div>
+                    <h3 className="font-bold text-gray-900">Create Organization User</h3>
+                    <p className="text-[11px] text-gray-500">Accounts are created directly under {currentOrg?.name || "this organization"}.</p>
+                  </div>
+                </div>
+
+                <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                  <div>
+                    <label className="block font-bold text-gray-700 mb-1">Full Name</label>
+                    <input
+                      type="text"
+                      value={userForm.name}
+                      onChange={(event) => setUserForm((prev) => ({ ...prev, name: event.target.value }))}
+                      className="w-full border border-gray-300 rounded-lg p-2.5"
+                      placeholder="Location Manager name"
+                      required
+                    />
+                  </div>
+                  <div>
+                    <label className="block font-bold text-gray-700 mb-1">Email Address</label>
+                    <input
+                      type="email"
+                      value={userForm.email}
+                      onChange={(event) => setUserForm((prev) => ({ ...prev, email: event.target.value }))}
+                      className="w-full border border-gray-300 rounded-lg p-2.5"
+                      placeholder="manager@company.com"
+                      required
+                    />
+                  </div>
+                  <div>
+                    <label className="block font-bold text-gray-700 mb-1">Temporary Password</label>
+                    <input
+                      type="password"
+                      value={userForm.password}
+                      onChange={(event) => setUserForm((prev) => ({ ...prev, password: event.target.value }))}
+                      className="w-full border border-gray-300 rounded-lg p-2.5"
+                      placeholder="At least 8 characters"
+                      minLength={8}
+                      required
+                    />
+                  </div>
+                  <div>
+                    <label className="block font-bold text-gray-700 mb-1">Role</label>
+                    <select
+                      value={userForm.role}
+                      onChange={(event) => setUserForm((prev) => ({
+                        ...prev,
+                        role: event.target.value,
+                        locationIds: event.target.value === "LOCATION_MANAGER" ? prev.locationIds : [],
+                      }))}
+                      className="w-full border border-gray-300 rounded-lg p-2.5 bg-white"
+                    >
+                      <option value="LOCATION_MANAGER">Location Manager</option>
+                      <option value="ORG_ADMIN">Organization Admin</option>
+                      <option value="EXTERNAL_INSPECTOR">External Inspector</option>
+                    </select>
+                  </div>
+                </div>
+
+                {userForm.role === "LOCATION_MANAGER" && (
+                  <div>
+                    <label className="block font-bold text-gray-700 mb-2">Assigned Locations</label>
+                    {availableLocations.length === 0 ? (
+                      <p className="text-[11px] text-gray-500">No locations are available.</p>
+                    ) : (
+                      <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
+                        {availableLocations.map((location) => (
+                          <label
+                            key={location.id}
+                            className="flex items-center gap-2 p-2.5 rounded-lg border border-gray-200 bg-white cursor-pointer"
+                          >
+                            <input
+                              type="checkbox"
+                              checked={userForm.locationIds.includes(location.id)}
+                              onChange={() => toggleUserLocation(location.id)}
+                              className="rounded text-indigo-600"
+                            />
+                            <span className="truncate">
+                              <strong className="block text-gray-800">{location.name}</strong>
+                              <span className="text-[10px] text-gray-500">{location.code || "No code"} · {location.state || "State pending"}</span>
+                            </span>
+                          </label>
+                        ))}
+                      </div>
+                    )}
+                  </div>
+                )}
+
+                {userFormStatus && (
+                  <p className={`text-[11px] font-semibold ${userFormStatus.includes("successfully") ? "text-emerald-700" : "text-red-700"}`}>
+                    {userFormStatus}
+                  </p>
+                )}
+
+                <div className="flex justify-end">
+                  <button
+                    type="submit"
+                    disabled={isCreatingUser}
+                    className="flex items-center gap-1.5 px-4 py-2 text-xs font-bold text-white bg-indigo-600 hover:bg-indigo-700 rounded-lg disabled:opacity-60"
+                  >
+                    <UserPlus className="w-4 h-4" />
+                    {isCreatingUser ? "Creating Account..." : "Create Account"}
+                  </button>
+                </div>
+              </form>
+
+              <div className="border border-gray-200 rounded-xl overflow-hidden">
+                <div className="px-3 py-2 bg-gray-50 border-b border-gray-200 flex items-center justify-between">
+                  <span className="font-bold text-gray-900">Organization Accounts</span>
+                  <span className="text-[10px] text-gray-500">{organizationUsers.length} users</span>
+                </div>
+                {organizationUsers.length === 0 ? (
+                  <p className="p-4 text-gray-500 text-center">No organization users found.</p>
+                ) : (
+                  <div className="divide-y divide-gray-100 max-h-48 overflow-y-auto">
+                    {organizationUsers.map((organizationUser) => (
+                      <div key={organizationUser.id} className="px-3 py-2.5 flex items-center justify-between gap-3">
+                        <div className="min-w-0">
+                          <p className="font-bold text-gray-900 truncate">{organizationUser.name}</p>
+                          <p className="text-[10px] text-gray-500 truncate">{organizationUser.email}</p>
+                        </div>
+                        <span className="text-[9px] font-bold uppercase px-2 py-0.5 rounded bg-indigo-50 text-indigo-700 shrink-0">
+                          {organizationUser.role?.replace(/_/g, " ")}
+                        </span>
+                      </div>
+                    ))}
+                  </div>
+                )}
+              </div>
+            </div>
+          )}
+
+          {/* TAB 5: ALERTS & CHANNELS */}
           {activeTab === "alerts" && (
             <div className="space-y-4 text-xs">
               <p className="text-gray-500 text-xs">

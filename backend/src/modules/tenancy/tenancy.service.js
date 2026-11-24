@@ -223,6 +223,25 @@ class TenancyService {
       throw new BadRequestError('User name, email, password, and role are required.');
     }
 
+    const allowedRoles = ['ORG_ADMIN', 'LOCATION_MANAGER', 'EXTERNAL_INSPECTOR'];
+    if (!allowedRoles.includes(role)) {
+      throw new BadRequestError('Invalid user role.');
+    }
+
+    if (role === 'LOCATION_MANAGER') {
+      const uniqueLocationIds = [...new Set(locationIds)];
+      if (uniqueLocationIds.length === 0) {
+        throw new BadRequestError('At least one location is required for a location manager.');
+      }
+      const ownedLocations = await prisma.location.findMany({
+        where: { id: { in: uniqueLocationIds }, org_id: orgId },
+        select: { id: true },
+      });
+      if (ownedLocations.length !== uniqueLocationIds.length) {
+        throw new BadRequestError('One or more selected locations do not belong to this organization.');
+      }
+    }
+
     const normalizedEmail = email.toLowerCase().trim();
 
     const existingUser = await prisma.user.findUnique({
@@ -249,7 +268,7 @@ class TenancyService {
       // Assign locations if provided and user is LOCATION_MANAGER
       if (role === 'LOCATION_MANAGER' && locationIds.length > 0) {
         await tx.userLocationAccess.createMany({
-          data: locationIds.map((locId) => ({
+          data: [...new Set(locationIds)].map((locId) => ({
             user_id: user.id,
             location_id: locId,
           })),
