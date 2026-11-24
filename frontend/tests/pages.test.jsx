@@ -173,6 +173,33 @@ describe('Frontend Pages State Rendering Tests', () => {
       });
     });
 
+    it('does not show Verify / Review for an admin-owned pending document', async () => {
+      vi.spyOn(api, 'getDocuments').mockResolvedValue([
+        {
+          id: 'doc-admin',
+          file_name: 'admin-certificate.pdf',
+          location_id: 'loc-1',
+          status: 'PENDING_VERIFICATION',
+          uploaded_by_id: 'u-1',
+          license_type: { name: 'Trade License' },
+          sha256_hash: 'abc123',
+        },
+      ]);
+      vi.spyOn(api, 'getLocations').mockResolvedValue([{ id: 'loc-1', name: 'Store 1' }]);
+      vi.spyOn(api, 'getLicenseTypes').mockResolvedValue([]);
+
+      render(
+        <MemoryRouter>
+          <Documents />
+        </MemoryRouter>
+      );
+
+      await waitFor(() => {
+        expect(screen.getByText(/admin-certificate\.pdf/i)).toBeInTheDocument();
+      });
+      expect(screen.queryByRole('button', { name: /Verify \/ Review/i })).not.toBeInTheDocument();
+    });
+
     it('renders visible error message when API call fails', async () => {
       vi.spyOn(api, 'getDocuments').mockRejectedValue(new Error('Internal Server Error'));
       vi.spyOn(api, 'getLocations').mockRejectedValue(new Error('Internal Server Error'));

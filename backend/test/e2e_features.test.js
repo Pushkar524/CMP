@@ -181,7 +181,7 @@ test('End-to-End System Features & Use Cases Suite', async (t) => {
     assert.ok(body.document);
     assert.strictEqual(body.document.file_name, 'trade_license_test.txt');
     assert.strictEqual(body.document.sha256_hash, expectedHash);
-    assert.strictEqual(body.document.status, 'PENDING_VERIFICATION');
+    assert.strictEqual(body.document.status, 'VERIFIED');
     assert.ok(body.document.storage_key);
 
     uploadedDocId = body.document.id;
@@ -222,7 +222,7 @@ test('End-to-End System Features & Use Cases Suite', async (t) => {
   });
 
   // 5. Document Verification Flow (Approve / Reject)
-  await t.test('PATCH /api/documents/:id/verify approves document status to VERIFIED', async () => {
+  await t.test('PATCH /api/documents/:id/verify rejects verification of admin-owned document', async () => {
     const res = await fetch(`${baseUrl}/api/documents/${uploadedDocId}/verify`, {
       method: 'PATCH',
       headers: {
@@ -232,14 +232,13 @@ test('End-to-End System Features & Use Cases Suite', async (t) => {
       body: JSON.stringify({ approve: true }),
     });
 
-    assert.strictEqual(res.status, 200);
+    assert.strictEqual(res.status, 400);
     const body = await res.json();
-    assert.strictEqual(body.success, true);
-    assert.strictEqual(body.document.status, 'VERIFIED');
-    assert.strictEqual(body.document.verified_by_id, adminUser.id);
+    assert.strictEqual(body.success, false);
+    assert.match(body.message, /automatically verified/i);
   });
 
-  await t.test('PATCH /api/documents/:id/verify rejects document with rejection reason', async () => {
+  await t.test('PATCH /api/documents/:id/verify rejects rejection of admin-owned document', async () => {
     const res = await fetch(`${baseUrl}/api/documents/${uploadedDocId}/verify`, {
       method: 'PATCH',
       headers: {
@@ -252,11 +251,10 @@ test('End-to-End System Features & Use Cases Suite', async (t) => {
       }),
     });
 
-    assert.strictEqual(res.status, 200);
+    assert.strictEqual(res.status, 400);
     const body = await res.json();
-    assert.strictEqual(body.success, true);
-    assert.strictEqual(body.document.status, 'REJECTED');
-    assert.strictEqual(body.document.rejection_reason, 'Expired seal on certificate page 2');
+    assert.strictEqual(body.success, false);
+    assert.match(body.message, /automatically verified/i);
   });
 
   // 6. Audit Data Room & Secure Share Link

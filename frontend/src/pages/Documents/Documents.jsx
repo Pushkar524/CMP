@@ -20,7 +20,7 @@ import DeleteDocumentModal from "../../components/Modals/DeleteDocumentModal";
 import { DocumentsSkeleton } from "../../components/Skeletons";
 
 export default function Documents() {
-  const { isOrgAdmin, canAccessLocation } = useAuth();
+  const { user, isOrgAdmin, canAccessLocation } = useAuth();
   const [searchParams, setSearchParams] = useSearchParams();
   const [documents, setDocuments] = useState([]);
   const [locations, setLocations] = useState([]);
@@ -358,14 +358,17 @@ export default function Documents() {
                     <td className="py-3.5 px-5 text-right relative">
                       <div className="flex items-center justify-end gap-1.5">
                         {/* Verify button for Org Admin */}
-                        {isOrgAdmin && doc.status === "PENDING_VERIFICATION" && (
+                        {isOrgAdmin &&
+                          doc.status === "PENDING_VERIFICATION" &&
+                          doc.uploaded_by_id !== user?.id &&
+                          (
                           <button
                             onClick={() => setVerifyTarget(doc)}
                             className="px-2.5 py-1 bg-emerald-600 hover:bg-emerald-700 text-white rounded text-[11px] font-bold transition-colors shadow-2xs"
                           >
                             Verify / Review
                           </button>
-                        )}
+                          )}
 
                         {/* Quick History Button */}
                         <button
@@ -417,7 +420,9 @@ export default function Documents() {
                                 <span>Version & Renewal</span>
                               </button>
 
-                              {isOrgAdmin && doc.status === "PENDING_VERIFICATION" && (
+                              {isOrgAdmin &&
+                                doc.status === "PENDING_VERIFICATION" &&
+                                doc.uploaded_by_id !== user?.id && (
                                 <button
                                   onClick={() => {
                                     setActiveActionMenuId(null);

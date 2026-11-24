@@ -13,6 +13,21 @@ class DocumentService {
   async getDocuments(user, query = {}) {
     const where = { org_id: user.org_id };
 
+    if (user.role === 'ORG_ADMIN') {
+      await prisma.document.updateMany({
+        where: {
+          org_id: user.org_id,
+          uploaded_by_id: user.id,
+          status: 'PENDING_VERIFICATION',
+        },
+        data: {
+          status: 'VERIFIED',
+          verified_by_id: user.id,
+          verified_at: new Date(),
+        },
+      });
+    }
+
     if (user.role === 'LOCATION_MANAGER') {
       where.OR = [
         { location_id: null },
@@ -124,6 +139,7 @@ class DocumentService {
 
     const parsedIssueDate = issue_date ? new Date(issue_date) : null;
     const parsedExpiryDate = expiry_date ? new Date(expiry_date) : null;
+    const isOrgAdminUpload = user.role === 'ORG_ADMIN';
 
     const doc = await prisma.document.create({
       data: {
@@ -139,7 +155,9 @@ class DocumentService {
         expiry_date: parsedExpiryDate && !isNaN(parsedExpiryDate) ? parsedExpiryDate : null,
         parent_document_id: parent_document_id || null,
         uploaded_by_id: user.id,
-        status: 'PENDING_VERIFICATION',
+        status: isOrgAdminUpload ? 'VERIFIED' : 'PENDING_VERIFICATION',
+        verified_by_id: isOrgAdminUpload ? user.id : null,
+        verified_at: isOrgAdminUpload ? new Date() : null,
       },
       include: {
         license_type: { select: { id: true, name: true, code: true, issuing_authority: true } },
@@ -159,6 +177,9 @@ class DocumentService {
     });
 
     if (!doc) throw new NotFoundError('Document not found.');
+    if (user.role === 'ORG_ADMIN' && doc.uploaded_by_id === user.id) {
+      throw new BadRequestError('Documents uploaded by the organization administrator are automatically verified.');
+    }
 
     const updated = await prisma.document.update({
       where: { id: docId },
