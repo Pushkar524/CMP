@@ -37,6 +37,18 @@ router.post('/users', authorizeRoles('ORG_ADMIN'), (req, res, next) =>
   tenancyController.createUser(req, res, next)
 );
 
+router.patch('/users/:userId', authorizeRoles('ORG_ADMIN'), (req, res, next) =>
+  tenancyController.updateUser(req, res, next)
+);
+
+router.patch('/users/:userId/password', authorizeRoles('ORG_ADMIN'), (req, res, next) =>
+  tenancyController.resetUserPassword(req, res, next)
+);
+
+router.delete('/users/:userId', authorizeRoles('ORG_ADMIN'), (req, res, next) =>
+  tenancyController.removeUser(req, res, next)
+);
+
 router.post('/assign-location', authorizeRoles('ORG_ADMIN'), (req, res, next) =>
   tenancyController.assignLocationAccess(req, res, next)
 );

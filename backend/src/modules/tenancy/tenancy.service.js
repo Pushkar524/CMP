@@ -329,6 +329,123 @@ class TenancyService {
       },
     });
   }
+
+  async updateUser(orgId, actingUser, userId, data = {}) {
+    if (actingUser.role !== 'ORG_ADMIN') {
+      throw new ForbiddenError('Only organization administrators can modify users.');
+    }
+
+    const user = await prisma.user.findFirst({
+      where: { id: userId, org_id: orgId },
+    });
+    if (!user) throw new NotFoundError('User not found in this organization.');
+
+    const allowedRoles = ['ORG_ADMIN', 'LOCATION_MANAGER', 'EXTERNAL_INSPECTOR'];
+    const role = data.role || user.role;
+    if (!allowedRoles.includes(role)) throw new BadRequestError('Invalid user role.');
+
+    const name = typeof data.name === 'string' ? data.name.trim() : user.name;
+    if (!name) throw new BadRequestError('User name is required.');
+
+    let email = typeof data.email === 'string' ? data.email.toLowerCase().trim() : user.email;
+    if (!email) throw new BadRequestError('Email address is required.');
+    const existingEmail = await prisma.user.findUnique({ where: { email } });
+    if (existingEmail && existingEmail.id !== userId) {
+      throw new ConflictError('A user with this email address already exists.');
+    }
+
+    const locationIds = Array.isArray(data.locationIds)
+      ? [...new Set(data.locationIds)]
+      : null;
+
+    if (role === 'LOCATION_MANAGER' && (!locationIds || locationIds.length === 0)) {
+      throw new BadRequestError('At least one location is required for a location manager.');
+    }
+
+    if (locationIds) {
+      const ownedLocations = await prisma.location.findMany({
+        where: { id: { in: locationIds }, org_id: orgId },
+        select: { id: true },
+      });
+      if (ownedLocations.length !== locationIds.length) {
+        throw new BadRequestError('One or more selected locations do not belong to this organization.');
+      }
+    }
+
+    return await prisma.$transaction(async (tx) => {
+      const updated = await tx.user.update({
+        where: { id: userId },
+        data: { name, email, role },
+      });
+
+      await tx.userLocationAccess.deleteMany({ where: { user_id: userId } });
+      if (role === 'LOCATION_MANAGER' && locationIds) {
+        await tx.userLocationAccess.createMany({
+          data: locationIds.map((locationId) => ({ user_id: userId, location_id: locationId })),
+        });
+      }
+
+      return {
+        id: updated.id,
+        name: updated.name,
+        email: updated.email,
+        role: updated.role,
+      };
+    });
+  }
+
+  async resetUserPassword(orgId, actingUser, userId, newPassword) {
+    if (actingUser.role !== 'ORG_ADMIN') {
+      throw new ForbiddenError('Only organization administrators can reset passwords.');
+    }
+    if (!newPassword || newPassword.length < 8) {
+      throw new BadRequestError('New password must be at least 8 characters.');
+    }
+
+    const user = await prisma.user.findFirst({
+      where: { id: userId, org_id: orgId },
+      select: { id: true, name: true, email: true },
+    });
+    if (!user) throw new NotFoundError('User not found in this organization.');
+
+    await prisma.user.update({
+      where: { id: userId },
+      data: { password_hash: await hashText(newPassword, 10) },
+    });
+
+    return { id: user.id, name: user.name, email: user.email, passwordChanged: true };
+  }
+
+  async removeUser(orgId, actingUser, userId) {
+    if (actingUser.role !== 'ORG_ADMIN') {
+      throw new ForbiddenError('Only organization administrators can remove users.');
+    }
+    if (actingUser.id === userId) {
+      throw new BadRequestError('Organization administrators cannot remove their own account.');
+    }
+
+    const user = await prisma.user.findFirst({
+      where: { id: userId, org_id: orgId },
+    });
+    if (!user) throw new NotFoundError('User not found in this organization.');
+
+    await prisma.$transaction(async (tx) => {
+      await tx.document.updateMany({
+        where: { org_id: orgId, uploaded_by_id: userId },
+        data: { uploaded_by_id: actingUser.id },
+      });
+      await tx.document.updateMany({
+        where: { org_id: orgId, verified_by_id: userId },
+        data: { verified_by_id: actingUser.id },
+      });
+      await tx.auditLink.updateMany({
+        where: { org_id: orgId, created_by_id: userId },
+        data: { created_by_id: actingUser.id },
+      });
+      await tx.user.delete({ where: { id: userId } });
+    });
+    return { id: user.id, name: user.name, removed: true };
+  }
 }
 
 module.exports = new TenancyService();

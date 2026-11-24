@@ -18,7 +18,9 @@ import {
   Calendar,
   Cloud,
   Users,
-  UserPlus
+  UserPlus,
+  Pencil,
+  Trash2
 } from "lucide-react";
 import { useAuth } from "../../context/AuthContext";
 import { api } from "../../services/api";
@@ -73,6 +75,13 @@ export default function SettingsModal({ isOpen, onClose }) {
   });
   const [isCreatingUser, setIsCreatingUser] = useState(false);
   const [userFormStatus, setUserFormStatus] = useState("");
+  const [modifyTarget, setModifyTarget] = useState(null);
+  const [passwordTarget, setPasswordTarget] = useState(null);
+  const [adminNewPassword, setAdminNewPassword] = useState("");
+  const [currentPassword, setCurrentPassword] = useState("");
+  const [newOwnPassword, setNewOwnPassword] = useState("");
+  const [confirmOwnPassword, setConfirmOwnPassword] = useState("");
+  const [passwordStatus, setPasswordStatus] = useState("");
 
   // Load saved settings from localStorage
   useEffect(() => {
@@ -184,6 +193,95 @@ export default function SettingsModal({ isOpen, onClose }) {
       setUserFormStatus(error.message || "Could not create the user account.");
     } finally {
       setIsCreatingUser(false);
+    }
+  };
+
+  const refreshOrganizationUsers = async () => {
+    setOrganizationUsers(await api.getUsers());
+  };
+
+  const openModifyUser = (organizationUser) => {
+    setPasswordTarget(null);
+    setModifyTarget({
+      id: organizationUser.id,
+      name: organizationUser.name,
+      email: organizationUser.email,
+      role: organizationUser.role,
+      locationIds: (organizationUser.user_location_access || []).map((access) => access.location_id),
+    });
+  };
+
+  const handleModifyUser = async (event) => {
+    event.preventDefault();
+    if (!modifyTarget?.name.trim() || !modifyTarget.email.trim()) {
+      setUserFormStatus("Name and email are required.");
+      return;
+    }
+    if (modifyTarget.role === "LOCATION_MANAGER" && modifyTarget.locationIds.length === 0) {
+      setUserFormStatus("Select at least one location for this location manager.");
+      return;
+    }
+    try {
+      await api.updateUser(modifyTarget.id, {
+        name: modifyTarget.name.trim(),
+        email: modifyTarget.email.trim(),
+        role: modifyTarget.role,
+        locationIds: modifyTarget.role === "LOCATION_MANAGER" ? modifyTarget.locationIds : [],
+      });
+      await refreshOrganizationUsers();
+      setModifyTarget(null);
+      setUserFormStatus("User details updated successfully.");
+    } catch (error) {
+      setUserFormStatus(error.message || "Could not update the user.");
+    }
+  };
+
+  const handleAdminPasswordReset = async (event) => {
+    event.preventDefault();
+    if (!passwordTarget || adminNewPassword.length < 8) {
+      setUserFormStatus("New password must be at least 8 characters.");
+      return;
+    }
+    try {
+      await api.resetUserPassword(passwordTarget.id, adminNewPassword);
+      setAdminNewPassword("");
+      setPasswordTarget(null);
+      setUserFormStatus(`Password changed for ${passwordTarget.name}.`);
+    } catch (error) {
+      setUserFormStatus(error.message || "Could not change this user's password.");
+    }
+  };
+
+  const handleRemoveUser = async (organizationUser) => {
+    if (!window.confirm(`Remove ${organizationUser.name} from this organization?`)) return;
+    try {
+      await api.removeUser(organizationUser.id);
+      await refreshOrganizationUsers();
+      setUserFormStatus(`${organizationUser.name} removed successfully.`);
+    } catch (error) {
+      setUserFormStatus(error.message || "Could not remove this user.");
+    }
+  };
+
+  const handleOwnPasswordChange = async (event) => {
+    event.preventDefault();
+    setPasswordStatus("");
+    if (newOwnPassword.length < 6) {
+      setPasswordStatus("New password must be at least 6 characters.");
+      return;
+    }
+    if (newOwnPassword !== confirmOwnPassword) {
+      setPasswordStatus("New password and confirmation do not match.");
+      return;
+    }
+    try {
+      await api.changePassword(currentPassword, newOwnPassword);
+      setCurrentPassword("");
+      setNewOwnPassword("");
+      setConfirmOwnPassword("");
+      setPasswordStatus("Your password was changed successfully.");
+    } catch (error) {
+      setPasswordStatus(error.message || "Could not change your password.");
     }
   };
 
@@ -311,6 +409,52 @@ export default function SettingsModal({ isOpen, onClose }) {
                   className="w-full border border-gray-300 rounded-lg p-2.5 focus:ring-2 focus:ring-indigo-500 focus:outline-hidden"
                 />
               </div>
+
+              <form onSubmit={handleOwnPasswordChange} className="p-3.5 rounded-xl border border-gray-200 bg-gray-50 space-y-3">
+                <div>
+                  <span className="font-bold text-gray-900 block">Change My Password</span>
+                  <span className="text-[11px] text-gray-500">Verify your current password, then set a new one.</span>
+                </div>
+                <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
+                  <input
+                    type="password"
+                    value={currentPassword}
+                    onChange={(event) => setCurrentPassword(event.target.value)}
+                    className="w-full border border-gray-300 rounded-lg p-2.5"
+                    placeholder="Current password"
+                    required
+                  />
+                  <input
+                    type="password"
+                    value={newOwnPassword}
+                    onChange={(event) => setNewOwnPassword(event.target.value)}
+                    className="w-full border border-gray-300 rounded-lg p-2.5"
+                    placeholder="New password"
+                    minLength={6}
+                    required
+                  />
+                  <input
+                    type="password"
+                    value={confirmOwnPassword}
+                    onChange={(event) => setConfirmOwnPassword(event.target.value)}
+                    className="w-full border border-gray-300 rounded-lg p-2.5"
+                    placeholder="Confirm password"
+                    minLength={6}
+                    required
+                  />
+                </div>
+                {passwordStatus && (
+                  <p className={`text-[11px] font-semibold ${passwordStatus.includes("successfully") ? "text-emerald-700" : "text-red-700"}`}>
+                    {passwordStatus}
+                  </p>
+                )}
+                <div className="flex justify-end">
+                  <button type="submit" className="flex items-center gap-1.5 px-3.5 py-2 text-xs font-bold text-white bg-indigo-600 hover:bg-indigo-700 rounded-lg">
+                    <Key className="w-3.5 h-3.5" />
+                    Change Password
+                  </button>
+                </div>
+              </form>
             </div>
           )}
 
@@ -622,14 +766,130 @@ export default function SettingsModal({ isOpen, onClose }) {
                 ) : (
                   <div className="divide-y divide-gray-100 max-h-48 overflow-y-auto">
                     {organizationUsers.map((organizationUser) => (
-                      <div key={organizationUser.id} className="px-3 py-2.5 flex items-center justify-between gap-3">
-                        <div className="min-w-0">
-                          <p className="font-bold text-gray-900 truncate">{organizationUser.name}</p>
-                          <p className="text-[10px] text-gray-500 truncate">{organizationUser.email}</p>
+                      <div key={organizationUser.id} className="px-3 py-2.5 space-y-2">
+                        <div className="flex items-center justify-between gap-3">
+                          <div className="min-w-0">
+                            <p className="font-bold text-gray-900 truncate">{organizationUser.name}</p>
+                            <p className="text-[10px] text-gray-500 truncate">{organizationUser.email}</p>
+                          </div>
+                          <div className="flex items-center gap-1 shrink-0">
+                            <span className="text-[9px] font-bold uppercase px-2 py-0.5 rounded bg-indigo-50 text-indigo-700 mr-1">
+                              {organizationUser.role?.replace(/_/g, " ")}
+                            </span>
+                            <button
+                              type="button"
+                              onClick={() => openModifyUser(organizationUser)}
+                              className="p-1.5 rounded-md text-gray-500 hover:text-indigo-700 hover:bg-indigo-50"
+                              title={`Modify ${organizationUser.name}`}
+                            >
+                              <Pencil className="w-3.5 h-3.5" />
+                            </button>
+                            <button
+                              type="button"
+                              onClick={() => {
+                                setModifyTarget(null);
+                                setPasswordTarget(passwordTarget?.id === organizationUser.id ? null : organizationUser);
+                                setAdminNewPassword("");
+                              }}
+                              className="p-1.5 rounded-md text-gray-500 hover:text-amber-700 hover:bg-amber-50"
+                              title={`Change password for ${organizationUser.name}`}
+                            >
+                              <Key className="w-3.5 h-3.5" />
+                            </button>
+                            {organizationUser.id !== user?.id && (
+                              <button
+                                type="button"
+                                onClick={() => handleRemoveUser(organizationUser)}
+                                className="p-1.5 rounded-md text-gray-500 hover:text-red-700 hover:bg-red-50"
+                                title={`Remove ${organizationUser.name}`}
+                              >
+                                <Trash2 className="w-3.5 h-3.5" />
+                              </button>
+                            )}
+                          </div>
                         </div>
-                        <span className="text-[9px] font-bold uppercase px-2 py-0.5 rounded bg-indigo-50 text-indigo-700 shrink-0">
-                          {organizationUser.role?.replace(/_/g, " ")}
-                        </span>
+
+                        {passwordTarget?.id === organizationUser.id && (
+                          <form onSubmit={handleAdminPasswordReset} className="grid grid-cols-1 sm:grid-cols-[1fr_auto] gap-2 p-2 rounded-lg bg-amber-50 border border-amber-100">
+                            <input
+                              type="password"
+                              value={adminNewPassword}
+                              onChange={(event) => setAdminNewPassword(event.target.value)}
+                              minLength={8}
+                              placeholder={`New password for ${organizationUser.name}`}
+                              className="w-full border border-gray-300 rounded-lg p-2"
+                              required
+                            />
+                            <div className="flex gap-2">
+                              <button type="submit" className="px-3 py-2 text-[11px] font-bold text-white bg-amber-700 rounded-lg">
+                                Save Password
+                              </button>
+                              <button type="button" onClick={() => setPasswordTarget(null)} className="px-2 py-2 text-[11px] text-gray-600">
+                                Cancel
+                              </button>
+                            </div>
+                          </form>
+                        )}
+
+                        {modifyTarget?.id === organizationUser.id && (
+                          <form onSubmit={handleModifyUser} className="p-2.5 rounded-lg bg-indigo-50/60 border border-indigo-100 space-y-2">
+                            <div className="grid grid-cols-1 sm:grid-cols-3 gap-2">
+                              <input
+                                type="text"
+                                value={modifyTarget.name}
+                                onChange={(event) => setModifyTarget((prev) => ({ ...prev, name: event.target.value }))}
+                                className="border border-gray-300 rounded-lg p-2"
+                                placeholder="Name"
+                                required
+                              />
+                              <input
+                                type="email"
+                                value={modifyTarget.email}
+                                onChange={(event) => setModifyTarget((prev) => ({ ...prev, email: event.target.value }))}
+                                className="border border-gray-300 rounded-lg p-2"
+                                placeholder="Email"
+                                required
+                              />
+                              <select
+                                value={modifyTarget.role}
+                                onChange={(event) => setModifyTarget((prev) => ({
+                                  ...prev,
+                                  role: event.target.value,
+                                  locationIds: event.target.value === "LOCATION_MANAGER" ? prev.locationIds : [],
+                                }))}
+                                className="border border-gray-300 rounded-lg p-2 bg-white"
+                              >
+                                <option value="LOCATION_MANAGER">Location Manager</option>
+                                <option value="ORG_ADMIN">Organization Admin</option>
+                                <option value="EXTERNAL_INSPECTOR">External Inspector</option>
+                              </select>
+                            </div>
+                            {modifyTarget.role === "LOCATION_MANAGER" && (
+                              <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
+                                {availableLocations.map((location) => (
+                                  <label key={location.id} className="flex items-center gap-2 p-2 rounded-lg border border-gray-200 bg-white">
+                                    <input
+                                      type="checkbox"
+                                      checked={modifyTarget.locationIds.includes(location.id)}
+                                      onChange={() => setModifyTarget((prev) => ({
+                                        ...prev,
+                                        locationIds: prev.locationIds.includes(location.id)
+                                          ? prev.locationIds.filter((id) => id !== location.id)
+                                          : [...prev.locationIds, location.id],
+                                      }))}
+                                      className="rounded text-indigo-600"
+                                    />
+                                    <span className="truncate">{location.name}</span>
+                                  </label>
+                                ))}
+                              </div>
+                            )}
+                            <div className="flex justify-end gap-2">
+                              <button type="button" onClick={() => setModifyTarget(null)} className="px-3 py-2 text-[11px] text-gray-600">Cancel</button>
+                              <button type="submit" className="px-3 py-2 text-[11px] font-bold text-white bg-indigo-600 rounded-lg">Save Changes</button>
+                            </div>
+                          </form>
+                        )}
                       </div>
                     ))}
                   </div>

@@ -124,6 +124,13 @@ export const auth = {
     return await fetchAPI('/api/auth/me');
   },
 
+  changePassword: async (oldPassword, newPassword) => {
+    return await fetchAPI('/api/auth/change-password', {
+      method: 'POST',
+      body: JSON.stringify({ oldPassword, newPassword }),
+    });
+  },
+
   // Set current user (used by AuthContext)
   setCurrentUser: (userId) => {
     localStorage.setItem('sclip_user_id', userId);
@@ -174,6 +181,26 @@ export const tenancy = {
     return await fetchAPI('/api/tenancy/users', {
       method: 'POST',
       body: JSON.stringify(userData),
+    });
+  },
+
+  updateUser: async (userId, userData) => {
+    return await fetchAPI(`/api/tenancy/users/${userId}`, {
+      method: 'PATCH',
+      body: JSON.stringify(userData),
+    });
+  },
+
+  resetUserPassword: async (userId, newPassword) => {
+    return await fetchAPI(`/api/tenancy/users/${userId}/password`, {
+      method: 'PATCH',
+      body: JSON.stringify({ newPassword }),
+    });
+  },
+
+  removeUser: async (userId) => {
+    return await fetchAPI(`/api/tenancy/users/${userId}`, {
+      method: 'DELETE',
     });
   },
 
@@ -491,6 +518,11 @@ export const api = {
     return Array.isArray(data) ? data : (data.users || data.data || []);
   },
 
+  createUser: async (userData) => tenancy.createUser(userData),
+  updateUser: async (userId, userData) => tenancy.updateUser(userId, userData),
+  resetUserPassword: async (userId, newPassword) => tenancy.resetUserPassword(userId, newPassword),
+  removeUser: async (userId) => tenancy.removeUser(userId),
+
   getCurrentUser: async () => {
     const data = await auth.getCurrentUser();
     return data;
@@ -498,6 +530,7 @@ export const api = {
 
   setCurrentUser: auth.setCurrentUser,
   logout: auth.logout,
+  changePassword: auth.changePassword,
 
   // --- Locations ---
   getLocations: async () => {

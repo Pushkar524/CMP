@@ -94,6 +94,38 @@ class TenancyController {
     }
   }
 
+  async updateUser(req, res, next) {
+      try {
+        const result = await tenancyService.updateUser(req.orgId, req.user, req.params.userId, req.body);
+        res.status(200).json({ success: true, message: 'User updated successfully.', data: result });
+      } catch (err) {
+        next(err);
+      }
+  }
+
+  async resetUserPassword(req, res, next) {
+      try {
+        const result = await tenancyService.resetUserPassword(
+          req.orgId,
+          req.user,
+          req.params.userId,
+          req.body.newPassword
+        );
+        res.status(200).json({ success: true, message: 'User password changed successfully.', data: result });
+      } catch (err) {
+        next(err);
+      }
+  }
+
+  async removeUser(req, res, next) {
+      try {
+        const result = await tenancyService.removeUser(req.orgId, req.user, req.params.userId);
+        res.status(200).json({ success: true, message: 'User removed successfully.', data: result });
+      } catch (err) {
+        next(err);
+    }
+  }
+
   /**
    * POST /api/tenancy/assign-location
    */
