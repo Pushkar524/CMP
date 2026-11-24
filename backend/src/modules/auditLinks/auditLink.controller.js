@@ -28,6 +28,12 @@ class AuditLinkController {
       const { token } = req.params;
       const pin = req.headers['x-audit-pin'] || req.query?.pin || req.body?.pin;
       const link = await auditLinkService.getAuditByToken(token, pin);
+      // F-11: Record access log for successful public query
+      await auditLinkService.recordAccess(token, {
+        ip_address: req.ip,
+        user_agent: req.headers['user-agent'],
+        success: true,
+      }).catch(() => {});
       res.status(200).json({ success: true, data: link });
     } catch (err) { next(err); }
   }

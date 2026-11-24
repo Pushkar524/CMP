@@ -1,4 +1,5 @@
 const bcrypt = require('bcryptjs');
+const crypto = require('crypto');
 const { PrismaClient } = require('@prisma/client');
 const { verifySafeDatabaseUrl, api } = require('./helpers');
 
@@ -43,7 +44,7 @@ async function seedFindings() {
   const orgA = await prisma.organization.create({
     data: {
       name: `Tenant A Findings ${uniqueSuffix}`,
-      tax_id: `GSTIN-A-${uniqueSuffix.substring(0, 10).toUpperCase()}`,
+      tax_id: `GSTIN-A-${crypto.randomBytes(6).toString('hex').toUpperCase()}`,
       industry: 'Retail & Commercial',
       website: 'https://tenant-a.test',
       phone: '+919876543211',
@@ -55,7 +56,7 @@ async function seedFindings() {
   const orgB = await prisma.organization.create({
     data: {
       name: `Tenant B Findings ${uniqueSuffix}`,
-      tax_id: `GSTIN-B-${uniqueSuffix.substring(0, 10).toUpperCase()}`,
+      tax_id: `GSTIN-B-${crypto.randomBytes(6).toString('hex').toUpperCase()}`,
       industry: 'Logistics',
       website: 'https://tenant-b.test',
       phone: '+919876543212',

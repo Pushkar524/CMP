@@ -1,6 +1,7 @@
 const express = require('express');
 const notificationController = require('./notification.controller');
 const { authenticateJWT } = require('../../middleware/auth');
+const { authorizeRoles } = require('../../middleware/rbac');
 
 const router = express.Router();
 
@@ -30,6 +31,6 @@ router.get('/preferences', (req, res, next) => notificationController.getPrefere
 router.put('/preferences', (req, res, next) => notificationController.updatePreferences(req, res, next));
 
 // On-demand / Triggered Expiry & Risk Sweep
-router.post('/sweep', (req, res, next) => notificationController.runSweep(req, res, next));
+router.post('/sweep', authorizeRoles('ORG_ADMIN'), (req, res, next) => notificationController.runSweep(req, res, next));
 
 module.exports = router;

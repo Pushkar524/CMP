@@ -39,7 +39,7 @@ export default function CreateAuditLinkModal({ isOpen, onClose, onCreate, docume
     onCreate({
       title: title || "External Regulatory Audit Link",
       notes: notes || "Scoped inspector clearance package",
-      pin_hash: hasPin && pin ? pin : null,
+      pin: hasPin && pin ? pin : null,
       expires_at: expiresAt,
       document_ids: selectedDocs
     });

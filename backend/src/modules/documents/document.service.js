@@ -199,6 +199,10 @@ class DocumentService {
     });
     if (!doc) throw new NotFoundError('Document not found.');
 
+    if (user.role !== 'ORG_ADMIN' && doc.location_id && !user.accessibleLocationIds.includes(doc.location_id)) {
+      throw new ForbiddenError('You do not have access to documents for this location.');
+    }
+
     const url = await storageService.getSignedDownloadUrl(doc.storage_key);
     return { url, file_name: doc.file_name };
   }
@@ -211,6 +215,10 @@ class DocumentService {
       where: { id: docId, org_id: user.org_id },
     });
     if (!doc) throw new NotFoundError('Document not found.');
+
+    if (user.role !== 'ORG_ADMIN' && doc.location_id && !user.accessibleLocationIds.includes(doc.location_id)) {
+      throw new ForbiddenError('You do not have access to documents for this location.');
+    }
 
     try {
       const stream = await storageService.getFileStream(doc.storage_key);

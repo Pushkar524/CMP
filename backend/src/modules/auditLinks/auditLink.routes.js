@@ -3,18 +3,19 @@ const auditLinkController = require('./auditLink.controller');
 const { authenticateJWT } = require('../../middleware/auth');
 const { tenantScope } = require('../../middleware/tenantScope');
 const { authorizeRoles } = require('../../middleware/rbac');
+const { auditLinkLimiter } = require('../../middleware/rateLimiter');
 
 const router = express.Router();
 
 // ── PUBLIC routes (no auth) ─────────────────────────────────────
 // Get audit data room by token (external inspector view)
-router.get('/by-token/:token', (req, res, next) => auditLinkController.getAuditByToken(req, res, next));
+router.get('/by-token/:token', auditLinkLimiter, (req, res, next) => auditLinkController.getAuditByToken(req, res, next));
 
 // Download document from audit data room (external inspector view)
-router.get('/by-token/:token/documents/:docId/download', (req, res, next) => auditLinkController.downloadAuditDocument(req, res, next));
+router.get('/by-token/:token/documents/:docId/download', auditLinkLimiter, (req, res, next) => auditLinkController.downloadAuditDocument(req, res, next));
 
 // Record access log (called on successful data room open)
-router.post('/access/:token', (req, res, next) => auditLinkController.recordAuditAccess(req, res, next));
+router.post('/access/:token', auditLinkLimiter, (req, res, next) => auditLinkController.recordAuditAccess(req, res, next));
 
 // ── Protected routes ────────────────────────────────────────────
 router.use(authenticateJWT, tenantScope);

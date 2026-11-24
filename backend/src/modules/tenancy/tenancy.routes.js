@@ -24,7 +24,7 @@ router.post('/locations', authorizeRoles('ORG_ADMIN'), (req, res, next) =>
   tenancyController.createLocation(req, res, next)
 );
 
-router.patch('/locations/:locationId', (req, res, next) =>
+router.patch('/locations/:locationId', authorizeRoles('ORG_ADMIN'), (req, res, next) =>
   tenancyController.updateLocation(req, res, next)
 );
 

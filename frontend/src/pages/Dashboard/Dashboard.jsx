@@ -23,9 +23,11 @@ export default function Dashboard() {
   const [showUploadModal, setShowUploadModal] = useState(false);
   const [isRecalculating, setIsRecalculating] = useState(false);
   const [isLoading, setIsLoading] = useState(true);
+  const [error, setError] = useState(null);
 
   const loadData = async () => {
     try {
+      setError(null);
       const [nextLocations, nextDocuments, nextLicenseTypes] = await Promise.all([
         api.getLocations(),
         api.getDocuments(),
@@ -34,8 +36,9 @@ export default function Dashboard() {
       setLocations(Array.isArray(nextLocations) ? nextLocations : []);
       setDocuments(Array.isArray(nextDocuments) ? nextDocuments : []);
       setLicenseTypes(Array.isArray(nextLicenseTypes) ? nextLicenseTypes : []);
-    } catch (error) {
-      console.error("Dashboard data loading failed", error);
+    } catch (err) {
+      console.error("Dashboard data loading failed", err);
+      setError(err.message || "Failed to load dashboard data");
       setLocations([]);
       setDocuments([]);
       setLicenseTypes([]);
@@ -82,6 +85,11 @@ export default function Dashboard() {
 
   return (
     <div className="space-y-6">
+      {error && (
+        <div className="p-4 bg-red-50 border border-red-200 text-red-700 rounded-xl text-sm">
+          Failed to load dashboard: {error}
+        </div>
+      )}
       {/* Top Banner: Cascading Risk Warning */}
       {expiredCount > 0 && (
       <div className="bg-amber-500/10 border border-amber-500/30 rounded-2xl p-5 flex flex-col md:flex-row items-start md:items-center justify-between gap-4">
@@ -122,7 +130,7 @@ export default function Dashboard() {
             </div>
             <div className="text-2xl font-black text-gray-900 mt-1">{avgScore === null ? "—" : `${avgScore}%`}</div>
             <div className="text-[11px] text-gray-500 mt-1 font-medium">
-              {avgScore === null ? "Add a location to begin scoring" : `Rolled up across ${visibleLocations.length} locations`}
+              {avgScore === null ? "0 Locations registered" : `Rolled up across ${visibleLocations.length} locations`}
             </div>
           </div>
           <div className="scale-75 -mr-3">
@@ -219,7 +227,13 @@ export default function Dashboard() {
           </div>
 
           <div className="divide-y divide-gray-100">
-            {visibleLocations.map((loc) => {
+            {visibleLocations.length === 0 ? (
+              <div className="py-8 text-center text-gray-500">
+                <p className="font-semibold text-sm">No active operational facilities registered</p>
+                <p className="text-xs text-gray-400 mt-1">Add locations in the Locations tab to monitor compliance.</p>
+              </div>
+            ) : (
+              visibleLocations.map((loc) => {
               const score = loc.current_compliance_score ?? 0;
               const isHealthy = score >= 90;
               const isWarning = score >= 70 && score < 90;
@@ -265,7 +279,7 @@ export default function Dashboard() {
                   </div>
                 </div>
               );
-            })}
+            }))}
           </div>
         </div>
 

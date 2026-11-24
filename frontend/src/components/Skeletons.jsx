@@ -126,7 +126,7 @@ export function ComplianceScoreSkeleton() {
   return (
     <BufferingLoader
       title="Calculating Compliance Health"
-      message="Evaluating penalty vectors, requirement weights, and risk classifications..."
+      message="Evaluating Regulatory Compliance Engine: penalty vectors, requirement weights, and risk classifications..."
     />
   );
 }

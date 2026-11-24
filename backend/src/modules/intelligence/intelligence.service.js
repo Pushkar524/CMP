@@ -57,6 +57,10 @@ class IntelligenceService {
    * Create a new license type
    */
   async createLicenseType(data) {
+    if (!data || !data.name || !data.code || !String(data.name).trim() || !String(data.code).trim()) {
+      throw new BadRequestError('License type name and code are required.');
+    }
+
     const existing = await prisma.licenseType.findUnique({
       where: { code: data.code.toUpperCase().trim() },
     });

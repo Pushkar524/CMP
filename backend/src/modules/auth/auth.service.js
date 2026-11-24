@@ -218,6 +218,12 @@ class AuthService {
         email: result.admin.email,
         role: result.admin.role,
       },
+      admin: {
+        id: result.admin.id,
+        name: result.admin.name,
+        email: result.admin.email,
+        role: result.admin.role,
+      },
       organization: {
         id: result.org.id,
         name: result.org.name,
@@ -248,7 +254,13 @@ class AuthService {
       throw new NotFoundError('User profile not found.');
     }
 
+    const locs = user.user_location_access.map((acc) => acc.location);
     return {
+      id: user.id,
+      name: user.name,
+      email: user.email,
+      role: user.role,
+      createdAt: user.created_at,
       user: {
         id: user.id,
         name: user.name,
@@ -257,7 +269,8 @@ class AuthService {
         createdAt: user.created_at,
       },
       organization: user.organization,
-      accessibleLocations: user.user_location_access.map((acc) => acc.location),
+      locations: locs,
+      accessibleLocations: locs,
     };
   }
 

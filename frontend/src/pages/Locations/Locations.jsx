@@ -16,17 +16,20 @@ export default function Locations() {
   const [selectedLocation, setSelectedLocation] = useState(null);
   const [profileLocation, setProfileLocation] = useState(null);
   const [isLoading, setIsLoading] = useState(true);
+  const [error, setError] = useState(null);
 
   const loadData = async () => {
     try {
+      setError(null);
       const [nextLocations, nextDocuments] = await Promise.all([
         api.getLocations(),
         api.getDocuments(),
       ]);
       setLocations(Array.isArray(nextLocations) ? nextLocations : []);
       setDocuments(Array.isArray(nextDocuments) ? nextDocuments : []);
-    } catch (error) {
-      console.error("Locations data loading failed", error);
+    } catch (err) {
+      console.error("Locations data loading failed", err);
+      setError(err.message || "Failed to load locations");
       setLocations([]);
       setDocuments([]);
     } finally {
@@ -72,6 +75,11 @@ export default function Locations() {
 
   return (
     <div className="space-y-6">
+      {error && (
+        <div className="p-4 bg-red-50 border border-red-200 text-red-700 rounded-xl text-sm">
+          Failed to load locations: {error}
+        </div>
+      )}
       {/* Header & Controls */}
       <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4">
         <div>
@@ -123,7 +131,13 @@ export default function Locations() {
 
       {/* Facility Grid */}
       <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-5">
-        {filteredLocations.map((loc) => {
+        {filteredLocations.length === 0 ? (
+          <div className="col-span-full py-12 text-center bg-gray-50 border border-dashed border-gray-200 rounded-2xl">
+            <p className="text-gray-500 font-medium">No locations found</p>
+            <p className="text-xs text-gray-400 mt-1">Get started by creating a new operational facility.</p>
+          </div>
+        ) : (
+          filteredLocations.map((loc) => {
           const locDocs = documents.filter(d => d.location_id === loc.id);
           const score = loc.current_compliance_score ?? 0;
           const isHealthy = score >= 90;
@@ -173,7 +187,7 @@ export default function Locations() {
               </div>
             </div>
           );
-        })}
+        }))}
       </div>
 
       {/* Location Details Modal */}

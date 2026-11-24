@@ -482,7 +482,7 @@ export const api = {
 
   getUsers: async () => {
     const data = await tenancy.getUsers();
-    return data.users || [];
+    return Array.isArray(data) ? data : (data.users || data.data || []);
   },
 
   getCurrentUser: async () => {

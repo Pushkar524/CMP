@@ -334,6 +334,32 @@ class EmailService {
       text,
     });
   }
+
+  /**
+   * Sends weekly compliance digest email
+   */
+  async sendWeeklyDigest({ to, userName, organizationName, summary, locationSummaries = [] }) {
+    const html = this.wrapTemplate({
+      title: `Weekly Compliance Digest`,
+      subtitle: `${organizationName || 'Your Organization'} Regulatory Overview`,
+      contentHtml: `
+        <p>Dear ${userName || 'Compliance Administrator'},</p>
+        <p>Here is your weekly summary of compliance health across operating facilities:</p>
+        <p>${summary || 'All monitored licenses and statutory permits are reviewed weekly.'}</p>
+      `,
+      actionButton: {
+        text: 'Open Compliance Dashboard',
+        url: `${this.getBaseUrl()}/dashboard`,
+      },
+    });
+
+    return await this.sendEmail({
+      to,
+      subject: `Weekly Compliance Digest - ${organizationName || 'Compliance Platform'}`,
+      html,
+      text: `Weekly Compliance Digest\n\nDear ${userName || 'Compliance Administrator'},\n\n${summary || 'Weekly summary of compliance health.'}`,
+    });
+  }
 }
 
 module.exports = new EmailService();

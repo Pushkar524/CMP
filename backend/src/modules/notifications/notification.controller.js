@@ -120,7 +120,7 @@ class NotificationController {
         });
       }
 
-      res.status(201).json({
+      res.status(200).json({
         success: true,
         message: 'Notification generated successfully',
         data: result,

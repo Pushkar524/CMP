@@ -96,6 +96,8 @@ async function api(method, requestPath, token = null, body = null) {
   };
 }
 
+const crypto = require('crypto');
+
 /**
  * Registers a fresh second organization via POST /api/auth/register
  * @returns {Promise<{ org: object, token: string, adminEmail: string, adminPassword: string }>}
@@ -108,7 +110,7 @@ async function createSecondTenant() {
 
   const registerPayload = {
     organizationName: orgName,
-    taxId: `GSTIN-${uniqueSuffix.substring(0, 10).toUpperCase()}`,
+    taxId: `GSTIN-${crypto.randomBytes(6).toString('hex').toUpperCase()}`,
     adminName: `Tenant Two Admin`,
     email: adminEmail,
     password: adminPassword,

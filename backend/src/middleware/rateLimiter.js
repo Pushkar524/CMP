@@ -28,7 +28,23 @@ const apiLimiter = rateLimit({
   skip: () => process.env.NODE_ENV === 'test',
 });
 
+// Audit link PIN protection rate limiter (prevent brute forcing PINs)
+const auditLinkLimiter = rateLimit({
+  windowMs: 15 * 60 * 1000, // 15 minutes
+  max: 10, // 10 requests per IP/token
+  standardHeaders: true,
+  legacyHeaders: false,
+  validate: { ip: false, keyGeneratorIpFallback: false },
+  message: {
+    success: false,
+    status: 'fail',
+    message: 'Too many PIN verification attempts for this audit link, please try again later.',
+  },
+  keyGenerator: (req) => `${req.ip}_${req.params.token || 'general'}`,
+});
+
 module.exports = {
   authLimiter,
   apiLimiter,
+  auditLinkLimiter,
 };

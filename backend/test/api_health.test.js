@@ -22,6 +22,14 @@ test('Express App HTTP Routes Suite', async (t) => {
     });
   });
 
+  await t.test('GET / returns API metadata', async () => {
+    const res = await fetch(`${baseUrl}/`);
+    assert.strictEqual(res.status, 200);
+    const data = await res.json();
+    assert.strictEqual(data.success, true);
+    assert.strictEqual(data.health, '/health');
+  });
+
   await t.test('GET /health returns 200 and UP status', async () => {
     const res = await fetch(`${baseUrl}/health`);
     assert.strictEqual(res.status, 200);

@@ -20,17 +20,20 @@ export default function AuditLinks() {
   const [copiedToken, setCopiedToken] = useState(null);
   const [selectedLogs, setSelectedLogs] = useState(null);
   const [isLoading, setIsLoading] = useState(true);
+  const [error, setError] = useState(null);
 
   const loadData = async () => {
     try {
+      setError(null);
       const [nextAuditLinks, nextDocuments] = await Promise.all([
         api.getAuditLinks(),
         api.getDocuments(),
       ]);
       setAuditLinks(Array.isArray(nextAuditLinks) ? nextAuditLinks : []);
       setDocuments(Array.isArray(nextDocuments) ? nextDocuments : []);
-    } catch (error) {
-      console.error("Audit links data loading failed", error);
+    } catch (err) {
+      console.error("Audit links data loading failed", err);
+      setError(err.message || "Failed to fetch audit links");
       setAuditLinks([]);
       setDocuments([]);
     } finally {
@@ -66,6 +69,11 @@ export default function AuditLinks() {
 
   return (
     <div className="space-y-6">
+      {error && (
+        <div className="p-4 bg-red-50 border border-red-200 text-red-700 rounded-xl text-sm">
+          Failed to load audit links: {error}
+        </div>
+      )}
       {/* Top Header */}
       <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4">
         <div>
@@ -86,7 +94,13 @@ export default function AuditLinks() {
 
       {/* Audit Links List */}
       <div className="grid grid-cols-1 md:grid-cols-2 gap-5">
-        {auditLinks.map((link) => {
+        {auditLinks.length === 0 ? (
+          <div className="col-span-full py-12 text-center bg-gray-50 border border-dashed border-gray-200 rounded-2xl">
+            <p className="text-gray-500 font-medium">No active audit links generated</p>
+            <p className="text-xs text-gray-400 mt-1">Create an audit link to share documents with external inspectors.</p>
+          </div>
+        ) : (
+          auditLinks.map((link) => {
           const isExpired = new Date(link.expires_at) < new Date();
           const exposedDocs = documents.filter((d) => (link.document_ids || []).includes(d.id));
 
@@ -185,7 +199,7 @@ export default function AuditLinks() {
               </div>
             </div>
           );
-        })}
+        }))}
       </div>
 
       {/* Access Logs Modal */}

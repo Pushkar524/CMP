@@ -117,11 +117,13 @@ export default function ComplianceScore() {
   const [isSwitchingFacility, setIsSwitchingFacility] = useState(false);
   const [activeTab, setActiveTab] = useState("engine");
   const [calendarFilter, setCalendarFilter] = useState("ALL");
+  const [error, setError] = useState(null);
 
   useEffect(() => {
     let isMounted = true;
     (async () => {
       try {
+        setError(null);
         setIsLoading(true);
         const [nextLocations, nextDependencies, nextLicenseTypes, nextDocuments] = await Promise.all([
           api.getLocations(),
@@ -154,9 +156,10 @@ export default function ComplianceScore() {
           setScoreResult(null);
           setScoreHistory([]);
         }
-      } catch (error) {
-        console.error("Compliance data loading failed", error);
+      } catch (err) {
+        console.error("Compliance data loading failed", err);
         if (isMounted) {
+          setError(err.message || "Failed to calculate compliance score");
           setLocations([]);
           setDependencies([]);
           setLicenseTypes([]);
@@ -296,6 +299,16 @@ export default function ComplianceScore() {
   const uploadedCount = scoreBreakdown.uploadedCount ?? scoreSummary.compliantCount ?? 0;
   const gapsCount = scoreBreakdown.gapsCount ?? scoreSummary.missingCount ?? 0;
 
+  if (error) {
+    return (
+      <div className="space-y-6">
+        <div className="p-4 bg-red-50 border border-red-200 text-red-700 rounded-xl text-sm">
+          Failed to calculate compliance score: {error}
+        </div>
+      </div>
+    );
+  }
+
   // Buffer until all core metadata and the initial score have finished loading
   if (isLoading || (locations.length > 0 && (!selectedLoc || !scoreResult))) {
     return <ComplianceScoreSkeleton />;
@@ -305,9 +318,9 @@ export default function ComplianceScore() {
     return (
       <div className="bg-white rounded-2xl border border-gray-200/90 shadow-xs p-12 text-center">
         <Building className="w-12 h-12 text-gray-400 mx-auto mb-3" />
-        <h3 className="text-base font-bold text-gray-900">No Facilities Available</h3>
+        <h3 className="text-base font-bold text-gray-900">No operational locations registered</h3>
         <p className="text-xs text-gray-500 mt-1 max-w-md mx-auto">
-          You don't have access to any facilities or no locations have been configured yet.
+          Configure facilities in the Locations module to start monitoring compliance.
         </p>
       </div>
     );

@@ -36,9 +36,11 @@ export default function Documents() {
   const [isDeleting, setIsDeleting] = useState(false);
   const [verifiedHashIds, setVerifiedHashIds] = useState([]);
   const [isLoading, setIsLoading] = useState(true);
+  const [error, setError] = useState(null);
 
   const loadData = async () => {
     try {
+      setError(null);
       const [nextDocuments, nextLocations, nextLicenseTypes] = await Promise.all([
         api.getDocuments(),
         api.getLocations(),
@@ -47,8 +49,9 @@ export default function Documents() {
       setDocuments(Array.isArray(nextDocuments) ? nextDocuments : []);
       setLocations(Array.isArray(nextLocations) ? nextLocations : []);
       setLicenseTypes(Array.isArray(nextLicenseTypes) ? nextLicenseTypes : []);
-    } catch (error) {
-      console.error("Documents data loading failed", error);
+    } catch (err) {
+      console.error("Documents data loading failed", err);
+      setError(err.message || "Failed to load documents");
       setDocuments([]);
       setLocations([]);
       setLicenseTypes([]);
@@ -149,6 +152,11 @@ export default function Documents() {
 
   return (
     <div className="space-y-6">
+      {error && (
+        <div className="p-4 bg-red-50 border border-red-200 text-red-700 rounded-xl text-sm">
+          Failed to load documents: {error}
+        </div>
+      )}
       {/* Top Header */}
       <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4">
         <div>
@@ -241,7 +249,15 @@ export default function Documents() {
               </tr>
             </thead>
             <tbody className="divide-y divide-gray-100 text-xs">
-              {filteredDocs.map((doc, idx) => {
+              {filteredDocs.length === 0 ? (
+                <tr>
+                  <td colSpan={6} className="py-12 text-center text-gray-500">
+                    <p className="font-semibold text-sm">No compliance documents found</p>
+                    <p className="text-xs text-gray-400 mt-1">Upload a statutory license or clear active filters.</p>
+                  </td>
+                </tr>
+              ) : (
+                filteredDocs.map((doc, idx) => {
                 const loc = locations.find((l) => l.id === doc.location_id);
                 const isIntegrityChecked = verifiedHashIds.includes(doc.id);
 
@@ -426,7 +442,7 @@ export default function Documents() {
                     </td>
                   </tr>
                 );
-              })}
+              }))}
             </tbody>
           </table>
         </div>

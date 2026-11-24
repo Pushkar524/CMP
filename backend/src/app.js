@@ -28,8 +28,18 @@ app.use(cors({ origin: process.env.CORS_ORIGIN || 'http://localhost:5173', crede
 app.use(express.json());
 app.use(express.urlencoded({ extended: true }));
 
+app.get('/', (req, res) => {
+  res.json({
+    success: true,
+    status: 'ok',
+    service: 'Compliance Management Platform API',
+    health: '/health',
+    api: '/api',
+  });
+});
+
 // Health Check Route with live DB and Storage verification
-app.get('/health', async (req, res) => {
+app.get(['/health', '/api/health'], async (req, res) => {
   let dbStatus = 'UP';
   let storageStatus = 'UP';
 

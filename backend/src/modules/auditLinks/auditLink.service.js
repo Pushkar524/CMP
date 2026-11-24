@@ -1,5 +1,5 @@
 const prisma = require('../../config/db');
-const { BadRequestError, NotFoundError, ForbiddenError } = require('../../utils/errors');
+const { BadRequestError, NotFoundError, ForbiddenError, UnauthorizedError } = require('../../utils/errors');
 const bcrypt = require('bcryptjs');
 const crypto = require('crypto');
 const storageService = require('../../services/StorageService');
@@ -35,6 +35,18 @@ class AuditLinkService {
     if (!title) throw new BadRequestError('Title is required.');
     if (!expires_at) throw new BadRequestError('Expiry date is required.');
     if (!document_ids || document_ids.length === 0) throw new BadRequestError('At least one document is required.');
+
+    // Verify all document_ids belong to caller's org
+    const orgDocs = await prisma.document.findMany({
+      where: {
+        id: { in: document_ids },
+        org_id: user.org_id,
+      },
+      select: { id: true },
+    });
+    if (orgDocs.length !== document_ids.length) {
+      throw new ForbiddenError('One or more selected documents do not belong to your organization.');
+    }
 
     const token = crypto.randomBytes(24).toString('hex');
     const pinHash = pin ? await bcrypt.hash(pin, 10) : null;
@@ -86,7 +98,7 @@ class AuditLinkService {
       where: { token },
       include: {
         organization: { select: { id: true, name: true } },
-        created_by: { select: { id: true, name: true, email: true } },
+        created_by: { select: { id: true, name: true } },
         documents: {
           include: {
             document: {
@@ -112,12 +124,14 @@ class AuditLinkService {
 
     // PIN verification
     if (link.pin_hash) {
-      if (!pinEntered) throw new ForbiddenError('PIN required to access this data room.');
+      if (!pinEntered) throw new UnauthorizedError('PIN required to access this data room.');
       const pinMatch = await bcrypt.compare(String(pinEntered), link.pin_hash);
-      if (!pinMatch) throw new ForbiddenError('Invalid PIN.');
+      if (!pinMatch) throw new UnauthorizedError('Invalid PIN.');
     }
 
-    return link;
+    // Sanitize pin_hash out of public response
+    const { pin_hash, ...safeLink } = link;
+    return { ...safeLink, is_pin_protected: Boolean(pin_hash) };
   }
 
   /**
@@ -125,7 +139,7 @@ class AuditLinkService {
    */
   async recordAccess(token, { ip_address, user_agent, success }) {
     const link = await prisma.auditLink.findUnique({ where: { token } });
-    if (!link) return;
+    if (!link) throw new NotFoundError('Audit link not found.');
 
     await prisma.auditLinkAccessLog.create({
       data: {
