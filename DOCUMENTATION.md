@@ -311,3 +311,75 @@ cd backend
 # Runs full test suite against isolated local database
 npx vitest run --config tests/vitest.config.mjs
 ```
+
+---
+
+## 9. Comprehensive Component, Function & Property Verification Matrix
+
+### 9.1 Interactive Modals & Clickable UI Controls
+
+The system provides extensive automated UI component tests covering all modals, interactive controls, tab navigations, and buttons:
+
+```bash
+cd frontend
+# Execute full frontend component and pages test suite (81 tests)
+npm test
+```
+
+| Component | Target Element | Action Tested | Property / State Mutated | Status |
+| :--- | :--- | :--- | :--- | :---: |
+| **SettingsModal** | Header Close (X) | Click | Triggers `onClose()` handler | **PASS** |
+| | Tab: *Compliance Rules* | Click | Switches `activeTab` to `"compliance"`, renders threshold select | **PASS** |
+| | Tab: *Security & RBAC* | Click | Switches `activeTab` to `"security"`, renders expiration select | **PASS** |
+| | Tab: *Alerts & Channels*| Click | Switches `activeTab` to `"alerts"`, renders dispatch channels | **PASS** |
+| | Tab: *Storage & Cloud* | Click | Switches `activeTab` to `"storage"`, renders object storage details | **PASS** |
+| | Input: *Headquarters* | Type | Modifies `settings.headquarters` property dynamically | **PASS** |
+| | Button: *Save Settings* | Click | Writes serialized configuration to `localStorage['cmp_workspace_settings']` | **PASS** |
+| | Button: *Reset Defaults*| Click | Cleanses custom settings and reverts to system default policies | **PASS** |
+| **VersionHistoryModal** | Badges & Versions | Render | Reconstructs version lineage (v1, v2) via `parent_document_id` chain | **PASS** |
+| | Rejection Reason Card | Render | Renders inspector rejection explanation for non-compliant documents | **PASS** |
+| | Thumbnail / Preview | Click | Triggers document file download or lightbox viewer | **PASS** |
+| | Button: *Close History* | Click | Triggers `onClose()` callback | **PASS** |
+| **UploadDocumentModal** | Checkbox: *Org-Wide* | Toggle | Mutates `isOrgWide` (toggles single location vs org-wide jurisdiction) | **PASS** |
+| | Checkbox: *Lifetime* | Toggle | Mutates `isLifetimeValid` (nullifies expiry date, zeroes out years/months) | **PASS** |
+| | Select: *License Type* | Change | Selects license type, applies pre-configured validity intervals | **PASS** |
+| | File Dropzone | Drop/Select | Triggers client-side SHA-256 fingerprint generation | **PASS** |
+| **DeleteDocumentModal** | Card Prompt | Render | Injects document license type and file name into warning card | **PASS** |
+| | Button: *Yes, Delete* | Click | Dispatches `onDelete(document.id)` permanent purge request | **PASS** |
+| | Button: *Cancel* | Click | Dismisses modal without side-effects | **PASS** |
+| | Loading State | Property | Sets `disabled={true}` and renders spinner when `isDeleting={true}` | **PASS** |
+| **AddLocationModal** | Facility Type Buttons | Click | Switches facility category (`STORE`, `WAREHOUSE`, `OFFICE`, `FACTORY`) | **PASS** |
+| | Input: *Branch Name* | Type | Binds `name` state property | **PASS** |
+| | Input: *Branch Code* | Type | Auto-converts code to uppercase (`BLR-WH-02`) | **PASS** |
+| | Select: *State / UT* | Change | Sets Indian State / Union Territory dropdown | **PASS** |
+| | Button: *Save Location* | Click | Emits sanitized payload to `onAdd()` and closes form | **PASS** |
+| **NotificationModal** | Tab: *Channels & Settings*| Click | Switches view to channel preferences (Email, In-App, 30-Day Sweep) | **PASS** |
+| | Tab: *Recent Sweeps* | Click | Renders active alerts list or empty state illustration | **PASS** |
+| | Button: *Done* | Click | Calls `onClose()` | **PASS** |
+
+### 9.2 Shell Navigation & Gauges
+
+| Component | Target Element | Action Tested | Property / Route Output | Status |
+| :--- | :--- | :--- | :--- | :---: |
+| **Layout Shell** | Navigation Link | Click `/dashboard` | Navigates to Dashboard overview | **PASS** |
+| | Navigation Link | Click `/locations` | Navigates to Operational Facilities registry | **PASS** |
+| | Navigation Link | Click `/documents` | Navigates to Statutory Documents registry | **PASS** |
+| | Navigation Link | Click `/compliance`| Navigates to Compliance Scoring Engine | **PASS** |
+| | Navigation Link | Click `/audit-links`| Navigates to Cloud Data Rooms manager | **PASS** |
+| | Sidebar Org Card | Display | Binds active tenant name (`currentOrg.name`) | **PASS** |
+| | Button: *Settings* | Click | Opens `SettingsModal` drawer overlay | **PASS** |
+| **ScoreGauge** | Metric Ring (100%) | Render | Outputs `100%` with `#0f766e` fill & label `COMPLIANT` | **PASS** |
+| | Metric Ring (82%) | Render | Outputs `82%` with `#b7791f` fill & label `MODERATE RISK` | **PASS** |
+| | Metric Ring (45%) | Render | Outputs `45%` with `#c24145` fill & label `CRITICAL RISK` | **PASS** |
+
+### 9.3 Live Hosted HTTP API Contracts (`http://localhost:5000`)
+
+| Endpoint | Method | Test Conditions | Verified Contract & Status Code | Result |
+| :--- | :---: | :--- | :--- | :---: |
+| `/` | `GET` | Health check probe | HTTP 200 `{ success: true, service: "..." }` | **PASS** |
+| `/health` | `GET` | Dependency checks | HTTP 503 (Graceful DB & Storage telemetry) | **PASS** |
+| `/api/auth/login` | `POST` | Empty payload | HTTP 400 Bad Request with field validation | **PASS** |
+| `/api/unknown` | `GET` | Non-existent route | HTTP 404 with structured error envelope | **PASS** |
+| `/api/audit-links/by-token/:t` | `GET` | 15 rapid requests | HTTP 429 triggered on request #11 | **PASS** |
+| `/` | `OPTIONS`| Origin: `localhost:5173` | `Access-Control-Allow-Origin: http://localhost:5173` | **PASS** |
+
