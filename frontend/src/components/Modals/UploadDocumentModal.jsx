@@ -33,6 +33,7 @@ export default function UploadDocumentModal({ isOpen, onClose, onUpload, locatio
 
   useEffect(() => {
     if (!licenseTypes.length) return;
+    if (licenseTypeId === "__other__") return;
     if (!licenseTypeId || !licenseTypes.some((licenseType) => licenseType.id === licenseTypeId)) {
       setLicenseTypeId(licenseTypes[0].id);
     }
@@ -213,7 +214,7 @@ export default function UploadDocumentModal({ isOpen, onClose, onUpload, locatio
       detectedAuthority = "State Department of Labour";
     }
 
-    if (detectedType) {
+    if (licenseTypeId !== "__other__" && detectedType) {
       setOcrDetection({
         name: detectedType.name,
         code: detectedType.code,

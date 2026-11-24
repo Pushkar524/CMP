@@ -254,6 +254,48 @@ describe('Clickable Components, Functions, and Properties Test Suite', () => {
       fireEvent.click(closeBtn);
       expect(handleClose).toHaveBeenCalled();
     });
+
+    it('preserves Other mode and submits a manual document name', () => {
+      const handleUpload = vi.fn();
+
+      render(
+        <UploadDocumentModal
+          isOpen={true}
+          onClose={vi.fn()}
+          onUpload={handleUpload}
+          locations={mockLocations}
+          licenseTypes={mockLicenseTypes}
+        />
+      );
+
+      fireEvent.change(screen.getByLabelText(/License \/ Clearance Type/i), {
+        target: { value: "__other__" },
+      });
+
+      expect(screen.getByText(/Specify Custom Document/i)).toBeInTheDocument();
+      fireEvent.change(screen.getByPlaceholderText(/ISO 9001 Quality Certificate/i), {
+        target: { value: "Factory Fire Drill Certificate" },
+      });
+      fireEvent.change(screen.getByPlaceholderText(/Bureau Veritas/i), {
+        target: { value: "State Fire Department" },
+      });
+      fireEvent.change(screen.getByLabelText(/Jurisdiction \/ Scope/i), {
+        target: { value: "loc-1" },
+      });
+      fireEvent.click(screen.getByRole('checkbox', { name: /Lifetime/i }));
+      fireEvent.submit(document.getElementById("upload-doc-form"));
+
+      expect(handleUpload).toHaveBeenCalledWith(
+        expect.objectContaining({
+          license_type_id: "__other__",
+          custom_license_name: "Factory Fire Drill Certificate",
+          custom_issuing_authority: "State Fire Department",
+          location_id: "loc-1",
+          is_lifetime_valid: true,
+        }),
+        null
+      );
+    });
   });
 
   // ==============================================================
