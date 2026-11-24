@@ -1,6 +1,6 @@
 import React from 'react';
 import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest';
-import { render, screen, fireEvent, waitFor } from '@testing-library/react';
+import { render, screen, fireEvent, waitFor, within } from '@testing-library/react';
 import { MemoryRouter, Routes, Route } from 'react-router-dom';
 
 import SettingsModal from '../src/components/Modals/SettingsModal';
@@ -227,6 +227,15 @@ describe('Clickable Components, Functions, and Properties Test Suite', () => {
 
       // Verify modal title
       expect(screen.getByText(/Upload Regulatory Document/i)).toBeInTheDocument();
+
+      const licenseSelect = screen.getByLabelText(/License \/ Clearance Type/i);
+      expect(within(licenseSelect).getByRole('option', { name: /Trade License/i })).toBeInTheDocument();
+      expect(within(licenseSelect).getByRole('option', { name: /FSSAI License/i })).toBeInTheDocument();
+      expect(within(licenseSelect).getByRole('option', { name: /Other/i })).toBeInTheDocument();
+
+      const locationSelect = screen.getByRole('combobox', { name: /Jurisdiction \/ Scope/i });
+      expect(within(locationSelect).getByRole('option', { name: /Bangalore Hub/i })).toBeInTheDocument();
+      expect(within(locationSelect).getByRole('option', { name: /Mumbai Warehouse/i })).toBeInTheDocument();
 
       // Toggle Org-Wide scope
       const orgWideCheckbox = screen.getByRole('checkbox', { name: /Organization-Wide/i });

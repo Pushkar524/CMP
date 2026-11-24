@@ -31,6 +31,19 @@ export default function UploadDocumentModal({ isOpen, onClose, onUpload, locatio
   const [customAuthority, setCustomAuthority] = useState("");
   const [error, setError] = useState("");
 
+  useEffect(() => {
+    if (!licenseTypes.length) return;
+    if (!licenseTypeId || !licenseTypes.some((licenseType) => licenseType.id === licenseTypeId)) {
+      setLicenseTypeId(licenseTypes[0].id);
+    }
+  }, [licenseTypes, licenseTypeId]);
+
+  useEffect(() => {
+    if (locationId && !locations.some((location) => location.id === locationId)) {
+      setLocationId("");
+    }
+  }, [locations, locationId]);
+
   const minExpiryDate = issueDate || minIssueDate;
   const maxExpiryDate = `${maxExpiryYear}-12-31`;
 
@@ -415,7 +428,7 @@ export default function UploadDocumentModal({ isOpen, onClose, onUpload, locatio
           {/* License Type */}
           <div>
             <div className="flex items-center justify-between mb-1.5">
-              <label className="text-xs font-bold text-gray-700 uppercase tracking-wider">
+              <label htmlFor="upload-license-type" className="text-xs font-bold text-gray-700 uppercase tracking-wider">
                 License / Clearance Type
               </label>
               {licenseTypeId === "__other__" && (
@@ -425,6 +438,7 @@ export default function UploadDocumentModal({ isOpen, onClose, onUpload, locatio
               )}
             </div>
             <select
+              id="upload-license-type"
               value={licenseTypeId}
               onChange={(e) => {
                 const val = e.target.value;
@@ -494,7 +508,7 @@ export default function UploadDocumentModal({ isOpen, onClose, onUpload, locatio
           {/* Scope: Org Wide or Location Specific */}
           <div>
             <div className="flex items-center justify-between mb-1.5">
-              <label className="text-xs font-bold text-gray-700 uppercase tracking-wider">
+              <label htmlFor="upload-location" className="text-xs font-bold text-gray-700 uppercase tracking-wider">
                 Jurisdiction / Scope
               </label>
               <label className="flex items-center gap-1.5 text-xs text-indigo-600 cursor-pointer font-medium">
@@ -509,15 +523,19 @@ export default function UploadDocumentModal({ isOpen, onClose, onUpload, locatio
             </div>
             {!isOrgWide && (
               <select
+                id="upload-location"
                 value={locationId}
                 onChange={(e) => setLocationId(e.target.value)}
                 className="w-full text-sm border border-gray-300 rounded-lg px-3 py-2 bg-white focus:ring-2 focus:ring-indigo-500 focus:outline-hidden"
                 required={!isOrgWide}
+                disabled={locations.length === 0}
               >
-                <option value="">Select Location / Facility</option>
+                <option value="">
+                  {locations.length === 0 ? "No available locations" : "Select Location / Facility"}
+                </option>
                 {locations.map((loc) => (
                   <option key={loc.id} value={loc.id}>
-                    {loc.name} ({loc.code} - {loc.state})
+                    {loc.name}{loc.code ? ` (${loc.code}${loc.state ? ` - ${loc.state}` : ""})` : loc.state ? ` (${loc.state})` : ""}
                   </option>
                 ))}
               </select>
