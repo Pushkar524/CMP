@@ -2,24 +2,6 @@ const prisma = require('../../config/db');
 const { NotFoundError } = require('../../utils/errors');
 const intelligenceService = require('../intelligence/intelligence.service');
 
-const STATUTORY_RISK = {
-  TRADE_LICENSE: { act: 'State Municipal Corporations Act and Local Trade Licensing Rules', risk: 'Trade closure notice, municipal penalties, and cancellation of the trade certificate.' },
-  FIRE_NOC: { act: 'National Building Code and State Fire & Emergency Services Act', risk: 'Occupancy restriction, fire-safety prohibition, and operating-site penalties.' },
-  LIFT_LICENSE: { act: 'State Lifts and Escalators Act and Chief Electrical Inspectorate Rules', risk: 'Lift operation prohibition and equipment-usage penalties.' },
-  BUILDING_PLAN_APPROVAL: { act: 'State Town Planning and Urban Local Body Building Rules', risk: 'Demolition or stop-work notice and denial of occupancy clearance.' },
-  GST_REGISTRATION: { act: 'Central Goods and Services Tax Act, 2017', risk: 'Tax non-compliance penalties, blocked input tax credit, and GST registration suspension.' },
-  PAN: { act: 'Income-tax Act, 1961', risk: 'Tax filing penalties and restrictions on financial and contractual transactions.' },
-  FSSAI_LICENSE: { act: 'Food Safety and Standards Act, 2006', risk: 'Food business closure, seizure of unsafe food, and FSSAI penalties.' },
-  SHOP_AND_ESTABLISHMENT: { act: 'State Shops and Establishments Act and Labour Rules', risk: 'Labour inspection notice, wage/work-hour violations, and establishment penalties.' },
-  POLLUTION_NOC: { act: 'Environment Protection Act, 1986 and State SPCB Rules', risk: 'Operational shutdown, environmental compensation, and pollution-authority prosecution.' },
-  FACTORY_LICENSE: { act: 'Factories Act, 1948 and State Factory Rules', risk: 'Factory closure direction, inspector prosecution, and restart prohibition.' },
-  CONTRACT_LABOUR_LICENSE: { act: 'Contract Labour (Regulation and Abolition) Act, 1970', risk: 'Contractor-principal employer penalties and workforce registration suspension.' },
-  EPF_REGISTRATION: { act: 'Employees Provident Funds and Miscellaneous Provisions Act, 1952', risk: 'Contribution recovery, interest, damages, and EPFO prosecution.' },
-  ESI_REGISTRATION: { act: 'Employees State Insurance Act, 1948', risk: 'ESI contribution recovery, interest, damages, and benefit interruption.' },
-  HAZARDOUS_WASTE_AUTH: { act: 'Hazardous and Other Wastes Rules, 2016', risk: 'Waste handling prohibition, environmental compensation, and closure orders.' },
-};
-
-const clamp = (value, min, max) => Math.max(min, Math.min(max, value));
 const roundOne = (value) => Math.round(value * 10) / 10;
 
 function evaluateDocumentEvidence(doc, license, now) {
@@ -244,10 +226,6 @@ class ComplianceScoreService {
           }
         }
 
-        const risk = STATUTORY_RISK[lt.code] || {
-          act: `${location.state || 'Applicable state'} Statutory Licensing Regulations`,
-          risk: 'Notice of non-compliance, statutory fines, and suspension of the affected commercial activity.',
-        };
         deductions.push({
           licenseId: lt.id,
           licenseCode: lt.code,
@@ -267,8 +245,7 @@ class ComplianceScoreService {
                 : evaluation.status === 'EXPIRED' || evaluation.status === 'INVALID_DATE_RANGE'
                   ? `Submit a renewed or correctly dated ${lt.name} certificate immediately.`
                   : `Update ${lt.name} details and prepare renewal evidence before the expiry deadline.`,
-          statutoryAct: risk.act,
-          penaltyRisk: risk.risk,
+          issuingAuthority: lt.issuing_authority || null,
         });
         licenseWeightLost += penalty;
         evidenceQualityLoss += weight * evaluation.lossRatio;
@@ -327,8 +304,6 @@ class ComplianceScoreService {
           severity: 'CRITICAL',
           status: 'CASCADING_BLOCKED',
           recommendation,
-          statutoryAct: STATUTORY_RISK[targetCode]?.act || `${location.state || 'Applicable state'} Statutory Licensing Regulations`,
-          penaltyRisk: STATUTORY_RISK[targetCode]?.risk || 'Operating the affected certificate can expose the organization to statutory notices and suspension.',
         });
       }
 
@@ -367,28 +342,6 @@ class ComplianceScoreService {
       healthStatus = 'CRITICAL';
     } else if (finalScore < 85) {
       healthStatus = 'WARNING';
-    }
-
-    // 4.5. Fast deterministic statutory legal enrichment (instant, non-blocking)
-    const stateName = location.state || 'State';
-    for (const d of deductions) {
-      if (!d.statutoryAct) {
-        d.statutoryAct = `${stateName} Statutory Licensing Regulations`;
-      }
-      if (!d.penaltyRisk) {
-        d.penaltyRisk = 'Notice of non-compliance, statutory fines, and suspension of commercial operations.';
-      }
-    }
-
-    // Reuse previously cached aiAudit if available without blocking calculation
-    let aiAudit = null;
-    const previousScore = await prisma.complianceScore.findFirst({
-      where: { location_id: locationId, org_id: orgId },
-      orderBy: { calculated_at: 'desc' },
-      select: { breakdown_json: true },
-    });
-    if (previousScore?.breakdown_json?.aiAudit) {
-      aiAudit = previousScore.breakdown_json.aiAudit;
     }
 
     // 5. Structure Breakdown Payload
@@ -439,7 +392,6 @@ class ComplianceScoreService {
       },
       deductions,
       suggestedActions,
-      aiAudit,
     };
 
     // 6. Persist historical snapshot in compliance_scores and update location
@@ -519,10 +471,6 @@ class ComplianceScoreService {
       ? Math.round((locationScores.reduce((acc, l) => acc + l.score, 0) / locationScores.length) * 10) / 10
       : 100.0;
 
-    const aiSummaries = locationScores
-      .filter(l => l.breakdown?.aiAudit?.executiveSummary)
-      .map(l => `${l.name}: ${l.breakdown.aiAudit.executiveSummary}`);
-
     return {
       organizationId: orgId,
       averageScore: avgScore,
@@ -546,13 +494,6 @@ class ComplianceScoreService {
         },
         deductions: allDeductions,
         suggestedActions: allActions,
-        aiAudit: {
-          healthTitle: 'Enterprise Statutory Footprint Audit',
-          executiveSummary: aiSummaries.length > 0
-            ? aiSummaries.slice(0, 3).join(' ')
-            : `Comprehensive portfolio audit across ${locations.length} operating facilities.`,
-          potentialScore: `${Math.min(100, Math.round(avgScore + 20))}%`,
-        },
       },
     };
   }

@@ -24,7 +24,7 @@ export default function DependencyGraph({ dependencies = [], licenseTypes = [], 
             Cascading Risk Dependency Graph
           </h3>
           <p className="text-xs text-gray-500 mt-0.5">
-            If a blocking prerequisite lapses, downstream statutory licenses are automatically penalized.
+            Shows blocking prerequisite rules and the current document status recorded for each license.
           </p>
         </div>
         <span className="text-xs font-semibold px-2.5 py-1 bg-indigo-50 text-indigo-700 rounded-md">
@@ -101,8 +101,8 @@ export default function DependencyGraph({ dependencies = [], licenseTypes = [], 
                 <div className="mt-3 flex items-start gap-2 bg-red-100/70 text-red-800 text-xs p-2 rounded border border-red-200">
                   <AlertTriangle className="w-4 h-4 shrink-0 text-red-600 mt-0.5" />
                   <div>
-                    <span className="font-bold">Cascading Risk Active: </span>
-                    {prereqType?.name} is lapsed! Statutory compliance for {targetType?.name} is invalid regardless of its standalone expiry.
+                    <span className="font-bold">Blocking dependency detected: </span>
+                    {prereqType?.name} is missing or expired, and {targetType?.name} is tied to it by a recorded blocking rule.
                   </div>
                 </div>
               )}

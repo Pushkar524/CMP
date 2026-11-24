@@ -31,8 +31,8 @@ export default function TrendChart({ locationName = "Overall Footprint", history
         </div>
         <div className="flex items-center gap-2">
           <span className="flex items-center gap-1.5 text-xs font-semibold text-emerald-700 bg-emerald-50 px-2 py-1 rounded">
-            <span className="w-2 h-2 rounded-full bg-emerald-500 inline-block animate-pulse"></span>
-            Live Snapshot
+            <span className="w-2 h-2 rounded-full bg-emerald-500 inline-block"></span>
+            Recorded Snapshot
           </span>
         </div>
       </div>
