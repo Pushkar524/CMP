@@ -503,7 +503,9 @@ describe('Clickable Components, Functions, and Properties Test Suite', () => {
       });
 
       // Verify Navigation Links
-      expect(screen.getByRole('link', { name: /Dashboard/i })).toBeInTheDocument();
+      const brandLink = screen.getByRole('link', { name: /Go to Dashboard/i });
+      expect(brandLink).toHaveAttribute('href', '/dashboard');
+      expect(screen.getAllByRole('link', { name: /Dashboard/i }).length).toBeGreaterThanOrEqual(2);
       expect(screen.getByRole('link', { name: /Locations/i })).toBeInTheDocument();
       expect(screen.getByRole('link', { name: /Documents Registry/i })).toBeInTheDocument();
       expect(screen.getByRole('link', { name: /Compliance Score Engine/i })).toBeInTheDocument();

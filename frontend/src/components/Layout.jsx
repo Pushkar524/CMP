@@ -52,7 +52,12 @@ export default function Layout() {
       {/* Sidebar */}
       <aside className="app-sidebar w-64 bg-slate-900 text-slate-300 flex flex-col shrink-0 border-r border-slate-800">
         {/* Brand */}
-        <div className="sidebar-brand h-16 flex items-center px-6 border-b border-slate-800/80 gap-3">
+        <Link
+          to="/dashboard"
+          className="sidebar-brand h-16 flex items-center px-6 border-b border-slate-800/80 gap-3 hover:bg-slate-800/50 transition-colors cursor-pointer focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-inset focus-visible:ring-indigo-400"
+          title="Go to Dashboard"
+          aria-label="Go to Dashboard"
+        >
           <div className="w-8 h-8 rounded-lg bg-indigo-600 flex items-center justify-center font-black text-white text-base shadow-md">
             S
           </div>
@@ -62,7 +67,7 @@ export default function Layout() {
               Compliance workspace
             </span>
           </div>
-        </div>
+        </Link>
 
         {/* Tenant Org Selector */}
         <div className="sidebar-tenant p-4 border-b border-slate-800">
