@@ -58,7 +58,7 @@ export default function Login() {
         msg.toLowerCase().includes("fetch") ||
         msg.toLowerCase().includes("network")
       ) {
-        setError("No internet connection. Please connect to the internet to continue.");
+        setError("Unable to reach the database or server. Please try again shortly.");
       } else {
         setError(msg);
       }

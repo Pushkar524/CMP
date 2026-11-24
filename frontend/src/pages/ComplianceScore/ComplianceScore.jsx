@@ -219,7 +219,7 @@ export default function ComplianceScore() {
         setScoreHistory([]);
       } else {
         const [nextScore, nextHistory] = await Promise.all([
-          api.calculateLocationScore(selectedLocationId),
+          api.recalculateLocationScore(selectedLocationId),
           api.getLocationHistory(selectedLocationId),
         ]);
         setScoreResult(nextScore);
@@ -286,6 +286,7 @@ export default function ComplianceScore() {
         penalty: d.penalty,
         statutoryAct: d.statutoryAct,
         penaltyRisk: d.penaltyRisk,
+        evidence: d.evidence,
         locationName: d.locationName,
       }))
     : rawSuggestions.map((action) => ({
@@ -668,6 +669,12 @@ export default function ComplianceScore() {
                                   <div className="text-[11px] font-medium text-gray-600 mt-0.5">{sug.reason}</div>
                                 )}
                                 <p className="mt-1 text-xs opacity-85 leading-relaxed">{sug.desc}</p>
+
+                                {sug.evidence && (
+                                  <div className="mt-1.5 text-[10px] text-gray-600 leading-relaxed">
+                                    <span className="font-bold text-gray-700">Evidence:</span> {sug.evidence}
+                                  </div>
+                                )}
 
                                 {/* Behind-The-Scenes Enriched Statutory Act & Legal Exposure */}
                                 {sug.statutoryAct && (

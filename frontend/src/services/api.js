@@ -34,7 +34,7 @@ async function fetchAPI(endpoint, options = {}) {
   try {
     response = await fetch(url, config);
   } catch {
-    throw new Error('No internet connection. Please connect to the internet to continue.');
+    throw new Error('Unable to reach the server. Please try again shortly.');
   }
 
   // Try to parse JSON, fall back to text
@@ -71,7 +71,7 @@ async function fetchAPI(endpoint, options = {}) {
       lower.includes("enotfound") ||
       lower.includes("failed to fetch")
     ) {
-      message = 'No internet connection. Please connect to the internet to continue.';
+      message = 'Database temporarily unavailable. Please try again shortly.';
     }
 
     throw new Error(message);
@@ -257,8 +257,14 @@ export const intelligence = {
 // ============================================================
 
 export const documents = {
-  getDocuments: async () => {
-    return await fetchAPI('/api/documents');
+  getDocuments: async (params = {}) => {
+    const query = new URLSearchParams();
+    if (params.status && params.status !== 'ALL') query.set('status', params.status);
+    if (params.location_id) query.set('location_id', params.location_id);
+    if (params.page) query.set('page', String(params.page));
+    if (params.limit) query.set('limit', String(params.limit));
+    const suffix = query.toString() ? `?${query}` : '';
+    return await fetchAPI(`/api/documents${suffix}`);
   },
 
   // Upload a regulatory document (multipart/form-data)

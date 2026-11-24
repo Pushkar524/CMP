@@ -71,7 +71,11 @@ class DocumentController {
    */
   async verifyDocument(req, res, next) {
     try {
-      const { approve, reason } = req.body;
+      const approve = req.body.approve ?? req.body.approved;
+      const reason = req.body.reason;
+      if (typeof approve !== 'boolean') {
+        throw new BadRequestError('approve must be true or false.');
+      }
       const doc = await documentService.verifyDocument(req.user, req.params.id, approve, reason);
       res.status(200).json({ success: true, message: approve ? 'Document verified.' : 'Document rejected.', document: doc });
     } catch (err) {

@@ -146,7 +146,16 @@ export default function Locations() {
           return (
             <div
               key={loc.id}
-              className="bg-white rounded-2xl border border-gray-200/90 p-5 shadow-xs hover:border-indigo-300 hover:shadow-md transition-all flex flex-col justify-between"
+              role="button"
+              tabIndex={0}
+              onClick={() => setSelectedLocation(loc)}
+              onKeyDown={(event) => {
+                if (event.key === "Enter" || event.key === " ") {
+                  event.preventDefault();
+                  setSelectedLocation(loc);
+                }
+              }}
+              className="bg-white rounded-2xl border border-gray-200/90 p-5 shadow-xs hover:border-indigo-300 hover:shadow-md transition-all flex flex-col justify-between cursor-pointer focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-indigo-500"
             >
               <div>
                 <div className="flex items-start justify-between gap-3">

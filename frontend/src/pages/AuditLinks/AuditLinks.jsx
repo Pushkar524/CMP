@@ -56,11 +56,16 @@ export default function AuditLinks() {
     }
   };
 
-  const handleCopyLink = (token) => {
+  const handleCopyLink = async (token) => {
     const url = `${window.location.origin}/audit/${token}`;
-    navigator.clipboard.writeText(url);
-    setCopiedToken(token);
-    setTimeout(() => setCopiedToken(null), 2000);
+    try {
+      await navigator.clipboard.writeText(url);
+      setCopiedToken(token);
+      setTimeout(() => setCopiedToken(null), 2000);
+    } catch (err) {
+      console.error("Failed to copy audit link:", err);
+      window.prompt("Copy this audit link", url);
+    }
   };
 
   if (isLoading) {
@@ -93,7 +98,7 @@ export default function AuditLinks() {
       </div>
 
       {/* Audit Links List */}
-      <div className="grid grid-cols-1 md:grid-cols-2 gap-5">
+      <div className="grid grid-cols-1 xl:grid-cols-2 gap-5">
         {auditLinks.length === 0 ? (
           <div className="col-span-full py-12 text-center bg-gray-50 border border-dashed border-gray-200 rounded-2xl">
             <p className="text-gray-500 font-medium">No active audit links generated</p>
@@ -107,14 +112,14 @@ export default function AuditLinks() {
           return (
             <div
               key={link.id}
-              className={`bg-white rounded-2xl border p-5 shadow-xs flex flex-col justify-between transition-all ${
+              className={`min-w-0 bg-white rounded-2xl border p-4 sm:p-5 shadow-xs flex flex-col justify-between transition-all ${
                 link.is_active && !isExpired ? "border-gray-200/90" : "border-gray-200 bg-gray-50/50 opacity-80"
               }`}
             >
               <div>
                 <div className="flex items-start justify-between gap-3">
-                  <div>
-                    <div className="flex items-center gap-2">
+                  <div className="min-w-0">
+                    <div className="flex flex-wrap items-center gap-2">
                       <span
                         className={`text-[9px] font-black uppercase px-2 py-0.5 rounded-full ${
                           link.is_active && !isExpired
@@ -125,20 +130,20 @@ export default function AuditLinks() {
                         {link.is_active && !isExpired ? "Active Data Room" : "Revoked / Expired"}
                       </span>
                       {link.pin_hash && (
-                        <span className="flex items-center gap-1 text-[9px] font-bold uppercase px-2 py-0.5 rounded bg-amber-100 text-amber-800">
-                          <KeyRound className="w-3 h-3" />
-                          PIN Protected ({link.pin_hash})
+                        <span className="inline-flex max-w-full items-center gap-1 text-[9px] font-bold uppercase px-2 py-0.5 rounded bg-amber-100 text-amber-800">
+                          <KeyRound className="w-3 h-3 shrink-0" />
+                          <span className="truncate">PIN Protected ({link.pin_hash})</span>
                         </span>
                       )}
                     </div>
-                    <h3 className="text-base font-bold text-gray-900 mt-2">{link.title}</h3>
+                    <h3 className="text-base font-bold text-gray-900 mt-2 break-words">{link.title}</h3>
                   </div>
                 </div>
 
                 <p className="text-xs text-gray-500 mt-2 leading-relaxed">{link.notes}</p>
 
                 {/* Expiration and Scoped Docs Count */}
-                <div className="mt-4 pt-3 border-t border-gray-100 flex items-center justify-between text-xs text-gray-600">
+                <div className="mt-4 pt-3 border-t border-gray-100 flex flex-wrap items-center justify-between gap-2 text-xs text-gray-600">
                   <div className="flex items-center gap-1.5">
                     <Clock className="w-3.5 h-3.5 text-gray-400" />
                     <span>Expires: {new Date(link.expires_at).toLocaleDateString()}</span>
@@ -150,11 +155,12 @@ export default function AuditLinks() {
               </div>
 
               {/* Action Buttons */}
-              <div className="mt-5 pt-3 border-t border-gray-100 flex items-center justify-between gap-2">
+              <div className="mt-5 pt-3 border-t border-gray-100 flex flex-wrap items-center justify-between gap-2">
                 <div className="flex items-center gap-2">
                   <button
                     onClick={() => handleCopyLink(link.token)}
-                    className="flex items-center gap-1.5 px-3 py-1.5 bg-gray-100 hover:bg-gray-200 text-gray-700 text-xs font-semibold rounded-lg transition-colors"
+                    className="flex items-center gap-1.5 px-3 py-1.5 bg-gray-100 hover:bg-gray-200 text-gray-700 text-xs font-semibold rounded-lg transition-colors cursor-pointer"
+                    title="Copy inspector data room link"
                   >
                     {copiedToken === link.token ? (
                       <>
@@ -172,7 +178,7 @@ export default function AuditLinks() {
                   <Link
                     to={`/audit/${link.token}`}
                     target="_blank"
-                    className="p-1.5 text-indigo-600 hover:bg-indigo-50 rounded-lg transition-colors"
+                    className="p-1.5 text-indigo-600 hover:bg-indigo-50 rounded-lg transition-colors cursor-pointer"
                     title="Open Inspector View"
                   >
                     <ExternalLink className="w-4 h-4" />
@@ -182,14 +188,14 @@ export default function AuditLinks() {
                 <div className="flex items-center gap-2">
                   <button
                     onClick={() => setSelectedLogs(link)}
-                    className="px-2.5 py-1.5 text-xs font-medium text-gray-600 hover:text-gray-900 hover:bg-gray-100 rounded-lg"
+                    className="px-2.5 py-1.5 text-xs font-medium text-gray-600 hover:text-gray-900 hover:bg-gray-100 rounded-lg cursor-pointer"
                   >
                     Access Logs ({link.access_logs?.length || 0})
                   </button>
                   {link.is_active && !isExpired && (
                     <button
                       onClick={() => handleRevoke(link.id)}
-                      className="p-1.5 text-red-500 hover:bg-red-50 rounded-lg transition-colors"
+                      className="p-1.5 text-red-500 hover:bg-red-50 rounded-lg transition-colors cursor-pointer"
                       title="Revoke Data Room Access"
                     >
                       <Ban className="w-4 h-4" />

@@ -23,7 +23,7 @@ class DocumentService {
     if (query.location_id) {
       where.location_id = query.location_id;
     }
-    if (query.status) {
+    if (query.status && query.status !== 'ALL') {
       where.status = query.status;
     }
 

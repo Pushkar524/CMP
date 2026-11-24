@@ -65,7 +65,7 @@ export default function Dashboard() {
   const handleRecalculateScores = async () => {
     try {
       setIsRecalculating(true);
-      await Promise.all(visibleLocations.map(loc => api.calculateLocationScore(loc.id)));
+      await Promise.all(visibleLocations.map(loc => api.recalculateLocationScore(loc.id)));
       await loadData();
     } catch (err) {
       console.error("Recalculation error:", err);

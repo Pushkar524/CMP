@@ -11,7 +11,7 @@ import {
   MoreVertical,
   Trash2
 } from "lucide-react";
-import { api } from "../../services/api";
+import { api, computeSHA256 } from "../../services/api";
 import { useAuth } from "../../context/AuthContext";
 import UploadDocumentModal from "../../components/Modals/UploadDocumentModal";
 import VerifyDocumentModal from "../../components/Modals/VerifyDocumentModal";
@@ -38,7 +38,7 @@ export default function Documents() {
   const [isLoading, setIsLoading] = useState(true);
   const [error, setError] = useState(null);
 
-  const loadData = async () => {
+  const loadData = async ({ preservePage = false } = {}) => {
     try {
       setError(null);
       const [nextDocuments, nextLocations, nextLicenseTypes] = await Promise.all([
@@ -56,7 +56,7 @@ export default function Documents() {
       setLocations([]);
       setLicenseTypes([]);
     } finally {
-      setIsLoading(false);
+      if (!preservePage) setIsLoading(false);
     }
   };
 
@@ -84,24 +84,32 @@ export default function Documents() {
 
   const handleUpload = async (docData, file) => {
     await api.uploadDocument(docData, file);
-    loadData();
+    await loadData({ preservePage: true });
   };
 
   const handleVerify = async (docId, approve, reason) => {
     try {
       await api.verifyDocument(docId, approve, reason);
-      await loadData();
+      await loadData({ preservePage: true });
     } catch (error) {
       console.error("Failed to verify document:", error);
       alert(error.message || "Failed to update document verification status.");
     }
   };
 
-  const handleCheckIntegrity = (doc) => {
-    // Simulate real-time cryptographic validation of SHA-256 fingerprint against the document payload
-    setTimeout(() => {
-      setVerifiedHashIds((prev) => [...prev, doc.id]);
-    }, 200);
+  const handleCheckIntegrity = async (doc) => {
+    try {
+      const response = await fetch(api.getDocumentFileUrl(doc.id), { credentials: "include" });
+      if (!response.ok) throw new Error(`Could not fetch document (HTTP ${response.status})`);
+      const hash = await computeSHA256(await response.arrayBuffer());
+      if (doc.sha256_hash && hash.toLowerCase() !== doc.sha256_hash.toLowerCase()) {
+        throw new Error("The fetched file does not match the stored SHA-256 fingerprint.");
+      }
+      setVerifiedHashIds((prev) => prev.includes(doc.id) ? prev : [...prev, doc.id]);
+    } catch (error) {
+      console.error("Document integrity check failed:", error);
+      setError(error.message || "Document integrity verification failed.");
+    }
   };
 
   useEffect(() => {
@@ -120,7 +128,7 @@ export default function Documents() {
       await api.deleteDocument(docId);
       setDeleteTarget(null);
       setActiveActionMenuId(null);
-      await loadData();
+      await loadData({ preservePage: true });
     } catch (error) {
       console.error("Failed to delete document:", error);
       alert(error.message || "Failed to delete document.");

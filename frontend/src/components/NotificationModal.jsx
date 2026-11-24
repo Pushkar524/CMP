@@ -70,7 +70,8 @@ export default function NotificationModal({ isOpen, onClose }) {
         "⚡ Real-Time Compliance Test Alert",
         "Verification alert dispatched via SCLIP notification engine. Multi-channel delivery operational.",
         "EXPIRY_WARNING",
-        "/documents"
+        "/documents",
+        Boolean(prefs.email_enabled)
       );
       setStatusMessage("Test alert created!");
       setTimeout(() => setStatusMessage(""), 3000);

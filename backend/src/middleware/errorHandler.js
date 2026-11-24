@@ -29,7 +29,7 @@ function errorHandler(err, req, res, next) {
     err.message?.includes("ETIMEDOUT") ||
     err.message?.includes("ENOTFOUND")
   ) {
-    error = new AppError('No internet connection. Please connect to the internet to continue.', 503);
+    error = new AppError('Database temporarily unavailable. Please try again shortly.', 503);
   }
 
   // Handle JWT Errors

@@ -43,7 +43,12 @@ export const NotificationProvider = ({ children }) => {
       ]);
 
       if (notifsData.status === "fulfilled" && Array.isArray(notifsData.value)) {
-        setNotifications(notifsData.value.map(normalizeNotification));
+        const nextNotifications = notifsData.value.map(normalizeNotification);
+        setNotifications((previous) => {
+          const previousSignature = JSON.stringify(previous);
+          const nextSignature = JSON.stringify(nextNotifications);
+          return previousSignature === nextSignature ? previous : nextNotifications;
+        });
       }
 
       if (prefsData.status === "fulfilled" && prefsData.value) {
@@ -56,15 +61,15 @@ export const NotificationProvider = ({ children }) => {
     }
   }, []);
 
-  // Fetch on mount and setup polling every 30 seconds
+  // Fetch on mount and setup polling while the workspace is active
   useEffect(() => {
     fetchNotificationsAndPrefs();
 
     const interval = window.setInterval(() => {
-      if (localStorage.getItem("sclip_auth_token")) {
+      if (!document.hidden && localStorage.getItem("sclip_auth_token")) {
         fetchNotificationsAndPrefs();
       }
-    }, 30000);
+    }, 60000);
 
     return () => window.clearInterval(interval);
   }, [fetchNotificationsAndPrefs]);
@@ -116,9 +121,9 @@ export const NotificationProvider = ({ children }) => {
     }
   };
 
-  const triggerTestAlert = async (title, message, type = "EXPIRY_WARNING", link = "/dashboard") => {
+  const triggerTestAlert = async (title, message, type = "EXPIRY_WARNING", link = "/dashboard", sendEmail = false) => {
     try {
-      await api.createTestAlert(title, message, type, link);
+      await api.createTestAlert(title, message, type, link, sendEmail);
       await fetchNotificationsAndPrefs();
     } catch (e) {
       console.error("Failed to trigger test alert:", e.message);

@@ -74,7 +74,7 @@ export default function TrendChart({ locationName = "Overall Footprint", history
 
           {/* Data Points */}
           {points.map((p, i) => (
-            <g key={p.month} className="group cursor-pointer">
+            <g key={p.month} className="group" aria-label={`${p.month}: ${p.score}% compliance`}>
               <circle
                 cx={getX(i)}
                 cy={getY(p.score)}

@@ -2,6 +2,145 @@ const prisma = require('../../config/db');
 const { NotFoundError } = require('../../utils/errors');
 const intelligenceService = require('../intelligence/intelligence.service');
 
+const STATUTORY_RISK = {
+  TRADE_LICENSE: { act: 'State Municipal Corporations Act and Local Trade Licensing Rules', risk: 'Trade closure notice, municipal penalties, and cancellation of the trade certificate.' },
+  FIRE_NOC: { act: 'National Building Code and State Fire & Emergency Services Act', risk: 'Occupancy restriction, fire-safety prohibition, and operating-site penalties.' },
+  LIFT_LICENSE: { act: 'State Lifts and Escalators Act and Chief Electrical Inspectorate Rules', risk: 'Lift operation prohibition and equipment-usage penalties.' },
+  BUILDING_PLAN_APPROVAL: { act: 'State Town Planning and Urban Local Body Building Rules', risk: 'Demolition or stop-work notice and denial of occupancy clearance.' },
+  GST_REGISTRATION: { act: 'Central Goods and Services Tax Act, 2017', risk: 'Tax non-compliance penalties, blocked input tax credit, and GST registration suspension.' },
+  PAN: { act: 'Income-tax Act, 1961', risk: 'Tax filing penalties and restrictions on financial and contractual transactions.' },
+  FSSAI_LICENSE: { act: 'Food Safety and Standards Act, 2006', risk: 'Food business closure, seizure of unsafe food, and FSSAI penalties.' },
+  SHOP_AND_ESTABLISHMENT: { act: 'State Shops and Establishments Act and Labour Rules', risk: 'Labour inspection notice, wage/work-hour violations, and establishment penalties.' },
+  POLLUTION_NOC: { act: 'Environment Protection Act, 1986 and State SPCB Rules', risk: 'Operational shutdown, environmental compensation, and pollution-authority prosecution.' },
+  FACTORY_LICENSE: { act: 'Factories Act, 1948 and State Factory Rules', risk: 'Factory closure direction, inspector prosecution, and restart prohibition.' },
+  CONTRACT_LABOUR_LICENSE: { act: 'Contract Labour (Regulation and Abolition) Act, 1970', risk: 'Contractor-principal employer penalties and workforce registration suspension.' },
+  EPF_REGISTRATION: { act: 'Employees Provident Funds and Miscellaneous Provisions Act, 1952', risk: 'Contribution recovery, interest, damages, and EPFO prosecution.' },
+  ESI_REGISTRATION: { act: 'Employees State Insurance Act, 1948', risk: 'ESI contribution recovery, interest, damages, and benefit interruption.' },
+  HAZARDOUS_WASTE_AUTH: { act: 'Hazardous and Other Wastes Rules, 2016', risk: 'Waste handling prohibition, environmental compensation, and closure orders.' },
+};
+
+const clamp = (value, min, max) => Math.max(min, Math.min(max, value));
+const roundOne = (value) => Math.round(value * 10) / 10;
+
+function evaluateDocumentEvidence(doc, license, now) {
+  if (!doc) {
+    return {
+      lossRatio: 1,
+      status: 'MISSING',
+      severity: 'CRITICAL',
+      reason: 'Mandatory license document is missing',
+      evidence: 'No document record exists for this mandatory license.',
+    };
+  }
+
+  if (doc.status === 'REJECTED') {
+    return {
+      lossRatio: 0.80,
+      status: 'REJECTED',
+      severity: 'HIGH',
+      reason: `Document was rejected: ${doc.rejection_reason || 'Failed compliance review'}`,
+      evidence: doc.rejection_reason ? `Admin rejection reason: ${doc.rejection_reason}` : 'The latest document failed compliance review.',
+    };
+  }
+
+  if (doc.status === 'PENDING_VERIFICATION') {
+    return {
+      lossRatio: 0.35,
+      status: 'PENDING_VERIFICATION',
+      severity: 'MEDIUM',
+      reason: 'Document uploaded but awaiting verification',
+      evidence: `Uploaded ${doc.created_at ? new Date(doc.created_at).toLocaleDateString() : 'on an unknown date'} and has not been approved by an administrator.`,
+    };
+  }
+
+  if (license.is_lifetime_valid && doc.status === 'VERIFIED') {
+    return {
+      lossRatio: 0,
+      status: 'VERIFIED',
+      severity: 'NONE',
+      reason: 'Lifetime-valid registration is verified',
+      evidence: 'The document is administrator-verified and recorded as lifetime-valid.',
+    };
+  }
+
+  if (!doc.expiry_date) {
+    return {
+      lossRatio: 0.25,
+      status: 'MISSING_EXPIRY',
+      severity: 'MEDIUM',
+      reason: 'No expiry date recorded for a date-bound license',
+      evidence: 'Validity cannot be evaluated because the official expiry date is absent.',
+    };
+  }
+
+  const expiryDate = new Date(doc.expiry_date);
+  const issueDate = doc.issue_date ? new Date(doc.issue_date) : null;
+  const daysRemaining = Math.ceil((expiryDate.getTime() - now.getTime()) / 86400000);
+
+  if (issueDate && (!isNaN(issueDate.getTime()) && issueDate.getTime() > expiryDate.getTime())) {
+    return {
+      lossRatio: 1,
+      status: 'INVALID_DATE_RANGE',
+      severity: 'CRITICAL',
+      reason: 'Issue date occurs after the expiry date',
+      evidence: `Issue date ${issueDate.toLocaleDateString()} is later than expiry date ${expiryDate.toLocaleDateString()}.`,
+    };
+  }
+
+  if (daysRemaining <= 0 || doc.status === 'EXPIRED') {
+    return {
+      lossRatio: 1,
+      status: 'EXPIRED',
+      severity: 'CRITICAL',
+      reason: `License expired on ${expiryDate.toLocaleDateString()}`,
+      evidence: `Official expiry was ${Math.abs(daysRemaining)} day(s) ago${doc.verified_at ? `; last verification was ${new Date(doc.verified_at).toLocaleDateString()}` : ''}.`,
+      daysRemaining,
+    };
+  }
+
+  if (daysRemaining <= 7) {
+    return {
+      lossRatio: 0.55,
+      status: 'EXPIRING_CRITICAL',
+      severity: 'HIGH',
+      reason: `Critical expiry: ${daysRemaining} day(s) remaining`,
+      evidence: `Official expiry is ${expiryDate.toLocaleDateString()}, leaving only ${daysRemaining} day(s).`,
+      daysRemaining,
+    };
+  }
+
+  if (daysRemaining <= 30) {
+    return {
+      lossRatio: 0.30,
+      status: 'EXPIRING_SOON',
+      severity: 'MEDIUM',
+      reason: `Upcoming expiry: ${daysRemaining} day(s) remaining`,
+      evidence: `Official expiry is ${expiryDate.toLocaleDateString()}, within the 30-day renewal window.`,
+      daysRemaining,
+    };
+  }
+
+  if (daysRemaining <= 90) {
+    return {
+      lossRatio: 0.10,
+      status: 'EXPIRY_WINDOW',
+      severity: 'LOW',
+      reason: `Renewal planning window: ${daysRemaining} day(s) remaining`,
+      evidence: `Official expiry is ${expiryDate.toLocaleDateString()}, within the 90-day planning window.`,
+      daysRemaining,
+    };
+  }
+
+  return {
+    lossRatio: 0,
+    status: 'VERIFIED',
+    severity: 'NONE',
+    reason: 'Verified and valid',
+    evidence: `Official expiry is ${expiryDate.toLocaleDateString()} (${daysRemaining} day(s) remaining).`,
+    daysRemaining,
+  };
+}
+
 class ComplianceScoreService {
   /**
    * Evaluates and persists the 0-100 compliance score for a specific location
@@ -69,139 +208,71 @@ class ComplianceScoreService {
     let expiredCount = 0;
     let missingCount = 0;
     let pendingVerificationCount = 0;
+    let evidenceVerifiedCount = 0;
+    let evidenceQualityLoss = 0;
+    let licenseWeightLost = 0;
 
     // 3. Evaluate each required license type
     for (const req of requiredLicenses) {
       const lt = req.license_type;
       const doc = docMapByLicense.get(lt.id);
+      const weight = requiredLicenses.length > 0 ? 100 / requiredLicenses.length : 0;
+      const evaluation = evaluateDocumentEvidence(doc, lt, now);
 
-      // Case A: Missing Mandatory Document (Gap Detection)
-      if (!doc) {
+      if (evaluation.status === 'MISSING') {
         missingCount++;
-        const penalty = 20.0;
-        deductions.push({
-          licenseId: lt.id,
-          licenseCode: lt.code,
-          licenseName: lt.name,
-          penalty,
-          reason: 'Mandatory license document is missing',
-          severity: 'CRITICAL',
-          status: 'MISSING',
-          recommendation: `Upload a valid ${lt.name} document to recover +${penalty.toFixed(1)} pts.`,
-        });
-        suggestedActions.push(`Upload missing document for ${lt.name} (+${penalty.toFixed(1)} pts)`);
-        continue;
-      }
-
-      // Case B: Document was Rejected
-      if (doc.status === 'REJECTED') {
-        const penalty = 15.0;
-        deductions.push({
-          licenseId: lt.id,
-          licenseCode: lt.code,
-          licenseName: lt.name,
-          penalty,
-          reason: `Document was rejected: ${doc.rejection_reason || 'Failed compliance check'}`,
-          severity: 'HIGH',
-          status: 'REJECTED',
-          recommendation: `Re-upload a revised ${lt.name} to clear the rejection.`,
-        });
-        suggestedActions.push(`Re-upload rejected document for ${lt.name} (+${penalty.toFixed(1)} pts)`);
-        continue;
-      }
-
-      // Case C: Document is Pending Verification
-      if (doc.status === 'PENDING_VERIFICATION') {
+      } else if (evaluation.status === 'PENDING_VERIFICATION') {
         pendingVerificationCount++;
-        const penalty = 3.0;
-        deductions.push({
-          licenseId: lt.id,
-          licenseCode: lt.code,
-          licenseName: lt.name,
-          penalty,
-          reason: 'Document uploaded but awaiting manager verification',
-          severity: 'LOW',
-          status: 'PENDING_VERIFICATION',
-          recommendation: `Verify document ${doc.file_name} to restore +${penalty.toFixed(1)} pts.`,
-        });
-        suggestedActions.push(`Verify ${lt.name} (${doc.file_name}) to restore +${penalty.toFixed(1)} pts`);
-        continue;
-      }
-
-      // Case D: Lifetime Valid Exemption
-      if (lt.is_lifetime_valid) {
+      } else if (evaluation.status === 'EXPIRED' || evaluation.status === 'INVALID_DATE_RANGE') {
+        expiredCount++;
+      } else if (evaluation.status.startsWith('EXPIR')) {
+        expiringSoonCount++;
+      } else if (evaluation.status === 'VERIFIED') {
         compliantCount++;
-        // No expiry penalties ever apply to lifetime valid documents (e.g. PAN, GST)
-        continue;
+        evidenceVerifiedCount++;
       }
 
-      // Case E: Date-Bound License - Evaluate Expiry Proximity
-      if (doc.expiry_date) {
-        const expiryDate = new Date(doc.expiry_date);
-        const diffMs = expiryDate.getTime() - now.getTime();
-        const daysRemaining = Math.ceil(diffMs / (1000 * 60 * 60 * 24));
+      if (evaluation.lossRatio > 0) {
+        let penalty = roundOne(weight * evaluation.lossRatio);
 
-        if (daysRemaining <= 0 || doc.status === 'EXPIRED') {
-          expiredCount++;
-          const penalty = 18.0;
-          deductions.push({
-            licenseId: lt.id,
-            licenseCode: lt.code,
-            licenseName: lt.name,
-            penalty,
-            reason: `License expired on ${expiryDate.toLocaleDateString()}`,
-            severity: 'CRITICAL',
-            status: 'EXPIRED',
-            daysRemaining,
-            recommendation: `Submit renewal certificate immediately for ${lt.name}.`,
-          });
-          suggestedActions.push(`Renew expired license: ${lt.name} (+${penalty.toFixed(1)} pts)`);
-        } else if (daysRemaining <= 7) {
-          expiringSoonCount++;
-          const penalty = 10.0;
-          deductions.push({
-            licenseId: lt.id,
-            licenseCode: lt.code,
-            licenseName: lt.name,
-            penalty,
-            reason: `Critical expiry: Only ${daysRemaining} day(s) remaining`,
-            severity: 'HIGH',
-            status: 'EXPIRING_CRITICAL',
-            daysRemaining,
-            recommendation: `Submit urgent renewal application before ${expiryDate.toLocaleDateString()}.`,
-          });
-          suggestedActions.push(`Urgent: Renew ${lt.name} (expires in ${daysRemaining}d)`);
-        } else if (daysRemaining <= 30) {
-          expiringSoonCount++;
-          const penalty = 5.0;
-          deductions.push({
-            licenseId: lt.id,
-            licenseCode: lt.code,
-            licenseName: lt.name,
-            penalty,
-            reason: `Upcoming expiry: ${daysRemaining} day(s) remaining`,
-            severity: 'MEDIUM',
-            status: 'EXPIRING_SOON',
-            daysRemaining,
-            recommendation: `Prepare renewal filing for ${lt.name}.`,
-          });
-          suggestedActions.push(`Prepare renewal for ${lt.name} (expires in ${daysRemaining}d)`);
-        } else {
-          compliantCount++;
+        if (doc?.status === 'VERIFIED' && doc.verified_at) {
+          const verificationAgeDays = Math.max(0, Math.ceil((now.getTime() - new Date(doc.verified_at).getTime()) / 86400000));
+          if (verificationAgeDays > 365) {
+            const stalePenalty = roundOne(weight * 0.05);
+            penalty = roundOne(penalty + stalePenalty);
+            evaluation.evidence += ` The latest verification is ${verificationAgeDays} days old and should be refreshed.`;
+          }
         }
-      } else {
-        // Missing expiry date on a non-lifetime license
-        const penalty = 5.0;
+
+        const risk = STATUTORY_RISK[lt.code] || {
+          act: `${location.state || 'Applicable state'} Statutory Licensing Regulations`,
+          risk: 'Notice of non-compliance, statutory fines, and suspension of the affected commercial activity.',
+        };
         deductions.push({
           licenseId: lt.id,
           licenseCode: lt.code,
           licenseName: lt.name,
           penalty,
-          reason: 'No expiry date recorded for date-bound license',
-          severity: 'MEDIUM',
-          status: 'MISSING_EXPIRY',
-          recommendation: `Update document record with official expiry date.`,
+          reason: evaluation.reason,
+          evidence: evaluation.evidence,
+          severity: evaluation.severity,
+          status: evaluation.status,
+          daysRemaining: evaluation.daysRemaining,
+          recommendation: evaluation.status === 'MISSING'
+            ? `Upload a valid ${lt.name} document issued by ${lt.issuing_authority || 'the competent authority'}, then obtain administrator verification.`
+            : evaluation.status === 'REJECTED'
+              ? `Correct the rejection issue and upload a revised ${lt.name} certificate for verification.`
+              : evaluation.status === 'PENDING_VERIFICATION'
+                ? `Complete administrator verification of ${doc.file_name}.`
+                : evaluation.status === 'EXPIRED' || evaluation.status === 'INVALID_DATE_RANGE'
+                  ? `Submit a renewed or correctly dated ${lt.name} certificate immediately.`
+                  : `Update ${lt.name} details and prepare renewal evidence before the expiry deadline.`,
+          statutoryAct: risk.act,
+          penaltyRisk: risk.risk,
         });
+        licenseWeightLost += penalty;
+        evidenceQualityLoss += weight * evaluation.lossRatio;
+        suggestedActions.push(`${evaluation.status === 'MISSING' ? 'Upload' : 'Resolve'} ${lt.name}: ${evaluation.reason}`);
       }
     }
 
@@ -221,7 +292,11 @@ class ComplianceScoreService {
 
     for (const [targetCode, chains] of chainsByTarget.entries()) {
       const targetLicense = chains[0].targetLicense;
-      const penalty = 10.0;
+      const targetRule = requiredLicenses.find((req) => req.license_type?.code === targetCode);
+      const targetWeight = requiredLicenses.length > 0
+        ? 100 / requiredLicenses.length
+        : 10;
+      const penalty = roundOne(targetRule ? targetWeight * 0.35 : 10);
       const blockerNames = chains.map((c) => c.blockedByName);
       const isPlural = blockerNames.length > 1;
 
@@ -239,15 +314,21 @@ class ComplianceScoreService {
       const existingDeduction = deductions.find((d) => d.licenseCode === targetCode);
       if (existingDeduction) {
         existingDeduction.cascadingNote = reason;
+        existingDeduction.reason = `${existingDeduction.reason}; ${reason}`;
+        existingDeduction.evidence = `${existingDeduction.evidence || ''} Cascading evidence: ${reasonSuffix}.`;
+        existingDeduction.penalty = roundOne(Math.max(existingDeduction.penalty, penalty));
       } else {
         deductions.push({
           licenseCode: targetCode,
           licenseName: targetLicense,
           penalty,
           reason,
+          evidence: `Dependency evidence: ${reasonSuffix}.`,
           severity: 'CRITICAL',
           status: 'CASCADING_BLOCKED',
           recommendation,
+          statutoryAct: STATUTORY_RISK[targetCode]?.act || `${location.state || 'Applicable state'} Statutory Licensing Regulations`,
+          penaltyRisk: STATUTORY_RISK[targetCode]?.risk || 'Operating the affected certificate can expose the organization to statutory notices and suspension.',
         });
       }
 
@@ -260,14 +341,24 @@ class ComplianceScoreService {
       location.profile_completed ||
       (location.type && location.state && location.address)
     );
+    const profileFields = [
+      location.type,
+      location.state,
+      location.address,
+      location.city,
+      location.pincode,
+      location.phone,
+    ];
+    const profileCompleteness = profileFields.filter(Boolean).length / profileFields.length;
+    const profilePenalty = isProfileComplete ? 0 : roundOne((1 - profileCompleteness) * 10);
 
     if (!isProfileComplete) {
       suggestedActions.unshift('Complete the location profile before uploading compliance documents.');
     }
 
     // 4. Calculate Final Score (Clamped between 0 and 100)
-    const totalPenalty = deductions.reduce((sum, d) => sum + d.penalty, 0);
-    const rawScore = isProfileComplete ? 100.0 - totalPenalty : 0.0;
+    const totalPenalty = roundOne(deductions.reduce((sum, d) => sum + d.penalty, 0) + profilePenalty);
+    const rawScore = 100.0 - totalPenalty;
     const finalScore = Math.max(0.0, Math.min(100.0, Math.round(rawScore * 10) / 10));
 
     // Determine Health Status
@@ -305,6 +396,24 @@ class ComplianceScoreService {
       baseScore: 100.0,
       finalScore,
       healthStatus,
+      methodology: {
+        model: 'Evidence-weighted compliance index',
+        formula: '100 - mandatory-license evidence losses - dependency-chain losses - profile completeness loss',
+        metrics: [
+          'Mandatory requirement coverage',
+          'Document verification status',
+          'Expiry and renewal window',
+          'Issue-to-expiry date validity',
+          'Document verification age',
+          'Blocking prerequisite dependencies',
+          'Location profile completeness',
+        ],
+        scoreScale: {
+          compliant: '85-100',
+          warning: '60-84.9',
+          critical: '0-59.9',
+        },
+      },
       calculatedAt: now.toISOString(),
       location: {
         id: location.id,
@@ -322,6 +431,11 @@ class ComplianceScoreService {
         pendingVerificationCount,
         cascadingBlockedCount,
         totalDeductions: totalPenalty,
+        evidenceVerifiedCount,
+        evidenceQualityLoss: roundOne(evidenceQualityLoss),
+        licenseWeightLost: roundOne(licenseWeightLost),
+        profileCompleteness: roundOne(profileCompleteness * 100),
+        profilePenalty,
       },
       deductions,
       suggestedActions,
