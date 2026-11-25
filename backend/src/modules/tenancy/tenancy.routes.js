@@ -2,7 +2,7 @@ const express = require('express');
 const tenancyController = require('./tenancy.controller');
 const { authenticateJWT } = require('../../middleware/auth');
 const { tenantScope } = require('../../middleware/tenantScope');
-const { authorizeRoles } = require('../../middleware/rbac');
+const { authorizeRoles, verifyLocationAccess } = require('../../middleware/rbac');
 
 const router = express.Router();
 
@@ -24,8 +24,11 @@ router.post('/locations', authorizeRoles('ORG_ADMIN'), (req, res, next) =>
   tenancyController.createLocation(req, res, next)
 );
 
-router.patch('/locations/:locationId', authorizeRoles('ORG_ADMIN'), (req, res, next) =>
-  tenancyController.updateLocation(req, res, next)
+router.patch(
+  '/locations/:locationId',
+  authorizeRoles('ORG_ADMIN', 'LOCATION_MANAGER'),
+  verifyLocationAccess('locationId', 'params'),
+  (req, res, next) => tenancyController.updateLocation(req, res, next)
 );
 
 // User Management (Org Admin only)
