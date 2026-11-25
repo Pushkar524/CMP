@@ -330,3 +330,54 @@ input:focus-visible {
   background-size: 200% 100%;
   animation: shimmer 1.5s infinite ease-in-out;
 }
+
+@keyframes ms-dot-orbit {
+  0% {
+    transform: rotate(0deg);
+    opacity: 0;
+  }
+  5% {
+    opacity: 1;
+  }
+  33% {
+    transform: rotate(360deg);
+    opacity: 1;
+  }
+  62% {
+    transform: rotate(700deg);
+    opacity: 1;
+  }
+  68% {
+    transform: rotate(720deg);
+    opacity: 0;
+  }
+  100% {
+    transform: rotate(720deg);
+    opacity: 0;
+  }
+}
+
+.ms-loader {
+  position: relative;
+  width: 44px;
+  height: 44px;
+}
+
+.ms-loader-dot {
+  position: absolute;
+  inset: 0;
+  opacity: 0;
+  animation: ms-dot-orbit 4.2s cubic-bezier(0.35, 0.1, 0.25, 1) infinite;
+}
+
+.ms-loader-dot::before {
+  content: "";
+  position: absolute;
+  top: 0;
+  left: 50%;
+  width: 5px;
+  height: 5px;
+  border-radius: 9999px;
+  background-color: currentColor;
+  transform: translateX(-50%);
+}
