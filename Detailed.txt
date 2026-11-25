@@ -1,0 +1,270 @@
+================================================================================
+COMPLIANCE MANAGEMENT PLATFORM (CMP) — DETAILED PROJECT DOCUMENTATION
+================================================================================
+
+1. PROJECT OVERVIEW
+--------------------------------------------------------------------------------
+The Compliance Management Platform (CMP) is a multi-tenant web application
+designed for organizations that operate across multiple physical locations
+(stores, warehouses, offices, factories) and need to track, verify, and audit
+regulatory licenses and compliance documents.
+
+Academic Context:
+- Program: Bachelor of Engineering in Computer Science & Engineering
+- Institution: PES Institute of Technology & Management, Shivamogga
+- University: Visvesvaraya Technological University (VTU), Belagavi
+- Team: Pushkar Raj Purohit, Pavan Kumar, Suhas Patel N, T A Anantha Krishna
+- Guide: Ms. Suchitra H L, Assistant Professor, CSE Department
+
+
+2. COMPLETE TECHNOLOGY STACK
+--------------------------------------------------------------------------------
+Backend:
+- Runtime: Node.js (CommonJS)
+- Web Framework: Express 4.21.1
+- Database: PostgreSQL (compatible with hosted PostgreSQL such as Supabase or
+  local PostgreSQL 16 via Docker)
+- ORM & Migrations: Prisma 5.22.0 (@prisma/client, prisma)
+- Authentication: JSON Web Tokens via jsonwebtoken 9.0.2
+- Password Hashing: bcryptjs 2.4.3
+- Validation: Zod 4.6.7
+- Security Middleware: Helmet 8.3.0, CORS 2.8.5, express-rate-limit 8.7.1
+- File Uploads: Multer 1.4.5-lts.1 (in-memory/multipart upload handling)
+- Object Storage: AWS SDK v3 (@aws-sdk/client-s3 3.700.0,
+  @aws-sdk/s3-request-presigner 3.700.0) supporting S3-compatible providers
+  (Supabase Storage S3, AWS S3, or MinIO)
+- Background Jobs: node-cron 3.0.3
+- Email Services: Resend 4.0.1 and Nodemailer 6.9.16
+- Configuration: dotenv 16.4.5
+- Testing: Node.js built-in test runner (node --test), Vitest 5.0.5,
+  embedded-postgres 18.4.0-beta.17
+
+Frontend:
+- UI Library: React 18.3.1, React DOM 18.3.1
+- Routing: React Router DOM 6.28.0 (with React.lazy + Suspense code splitting)
+- Build Tool: Vite 5.4.11 (@vitejs/plugin-react 4.3.3)
+- Styling: Tailwind CSS 4.3.3 (@tailwindcss/postcss 4.3.3, postcss 8.5.28,
+  autoprefixer 10.6.1) with DM Sans font
+- HTTP Client: Axios 1.7.7
+- Icons: lucide-react 0.460.0
+- Linting: ESLint 10.12.0
+- Testing: Vitest 2.1.9, @testing-library/react 16.3.3,
+  @testing-library/jest-dom 7.0.1, jsdom 30.1.3
+
+
+3. SYSTEM ARCHITECTURE & DIRECTORY LAYOUT
+--------------------------------------------------------------------------------
+Root directory:
+- backend/             Express API, Prisma schema & migrations, background jobs
+- frontend/            React + Vite single-page application
+- docker-compose.yml   Local PostgreSQL 16 & MinIO containers for dev
+- README.md            Quick-start overview and setup instructions
+- Detailed.txt         This comprehensive technical reference
+
+Backend (backend/src/):
+- server.js            Loads env, initializes app, starts HTTP server & cron jobs
+- app.js               Configures Helmet, CORS, JSON parsing, rate limiter,
+                       /health & /api/health checks, module routes, 404 & error
+                       handling
+- config/              Database client (db.js), env validation, logger/config
+- middleware/
+  - auth.js            authenticateJWT middleware (verifies Bearer token & user)
+  - tenantScope.js     tenantScope middleware (binds req.orgId from user)
+  - rbac.js            authorizeRoles(...roles) and verifyLocationAccess(...)
+  - validate.js        Zod schema validation middleware
+  - rateLimiter.js     Express rate-limiting configuration
+  - errorHandler.js    Centralized HTTP error formatting & status codes
+- modules/
+  - auth/              Login, organization registration, current-user lookup
+  - tenancy/           Organization details, locations CRUD, user management,
+                       location manager assignments
+  - documents/         Document upload, listing, presigned download, verify,
+                       reject, delete, renewal version history chain
+  - compliance/        Compliance score calculation, breakdowns, historical
+                       snapshots, trend series
+  - intelligence/      License types, state rules, required license mappings,
+                       prerequisite dependency definitions
+  - auditLinks/        External audit data room creation, listing, revocation,
+                       public token + optional PIN verification
+  - notifications/     In-app notification feed, read state, alert preferences,
+                       scheduled expiry sweep
+  - eventTracking/     Audit and notification event tracking helpers
+- services/
+  - StorageService.js  Unified S3/MinIO upload, presigned URL, delete, & health
+  - EmailService.js    Unified Resend / Nodemailer email dispatcher
+
+Frontend (frontend/src/):
+- main.jsx             Application entry point
+- App.jsx              Router setup, ErrorBoundary, AuthProvider,
+                       NotificationProvider, ProtectedLayout, lazy routes
+- index.css            Tailwind CSS v4 import, CSS variables, responsive layout
+                       rules, and custom animations (including .ms-loader)
+- context/
+  - AuthContext.jsx    JWT token storage, login/logout/register, user session
+  - NotificationContext.jsx  Notification polling/state and unread counts
+- services/
+  - api.js             Axios instance with auth header injection & API helpers
+- components/
+  - Layout.jsx         Responsive sidebar & top header shell
+  - ErrorBoundary.jsx  Global React error boundary
+  - Skeletons.jsx      WorkspaceLoader and BufferingLoader UI states
+  - ScoreGauge.jsx     Visual compliance score gauge component
+  - TrendChart.jsx     Historical compliance score trend chart
+  - DependencyGraph.jsx Visualizes prerequisite license dependencies
+  - NotificationModal.jsx In-app notification center
+  - Modals/
+    - AddLocationModal.jsx
+    - RegisterLocationModal.jsx
+    - CompleteLocationModal.jsx
+    - UploadDocumentModal.jsx
+    - VerifyDocumentModal.jsx
+    - DeleteDocumentModal.jsx
+    - VersionHistoryModal.jsx
+    - CreateAuditLinkModal.jsx
+    - AiAuditModal.jsx
+    - SettingsModal.jsx
+- pages/
+  - Auth/Login.jsx     Split-screen sign-in page with RBAC demo personas
+  - Auth/Register.jsx  Organization + Admin registration flow
+  - Dashboard/Dashboard.jsx
+  - Locations/Locations.jsx
+  - Documents/Documents.jsx
+  - ComplianceScore/ComplianceScore.jsx
+  - AuditLinks/AuditLinks.jsx
+  - AuditView/AuditView.jsx
+
+
+4. MULTI-TENANCY, RBAC & LOCATION SCOPING
+--------------------------------------------------------------------------------
+Every organization is isolated by org_id across database tables and API routes.
+
+Roles (Prisma enum Role):
+1. ORG_ADMIN
+   - Full visibility and control across all locations in their organization.
+   - Can create locations, create/update/delete users, assign locations to
+     managers, verify/reject documents, and manage audit rooms.
+2. LOCATION_MANAGER
+   - Scoped strictly to locations assigned via UserLocationAccess.
+   - Can view assigned locations, complete/update operational store details
+     (PATCH /api/tenancy/locations/:locationId, protected by
+     authorizeRoles('ORG_ADMIN', 'LOCATION_MANAGER') and verifyLocationAccess),
+     and upload/manage documents for assigned locations.
+3. EXTERNAL_INSPECTOR
+   - Read-only external role for inspecting shared compliance records.
+
+Location Profile Completion Workflow:
+- Locations can be provisioned with basic details and marked
+  profile_completed = false.
+- When a Location Manager signs in or opens the location, CompleteLocationModal
+  allows them to fill in store code, facility type (STORE, WAREHOUSE, OFFICE,
+  FACTORY), state, city, GSTIN, PIN code, contact phone, employee count,
+  operating hours, and full address.
+- Once type, state, and address are present, profile_completed automatically
+  updates to true in tenancyService.updateLocation.
+
+
+5. DATABASE SCHEMA (PRISMA MODELS & ENUMS)
+--------------------------------------------------------------------------------
+Enums:
+- Role: ORG_ADMIN, LOCATION_MANAGER, EXTERNAL_INSPECTOR
+- DocumentStatus: PENDING_VERIFICATION, VERIFIED, REJECTED, EXPIRED
+- AlertType: EXPIRY_WARNING, LAPSED_LICENSE, CASCADING_RISK
+- NotificationChannel: EMAIL, SMS, IN_APP
+
+Models:
+1. Organization (organizations)
+   - Stores org metadata: id, name, tax_id (unique), industry, website, phone,
+     address, timestamps.
+2. Location (locations)
+   - Stores facility metadata: id, org_id, name, code (unique per org), type,
+     state, address, city, pincode, phone, gstin, employee_count,
+     operating_hours, profile_completed, current_compliance_score.
+3. User (users)
+   - Stores id, org_id, name, email (unique), password_hash, role, timestamps.
+4. UserLocationAccess (user_location_access)
+   - Join table mapping user_id <-> location_id (unique pair).
+5. LicenseType (license_types)
+   - Catalog of regulatory licenses: name, code (unique, e.g., TRADE_LICENSE,
+     FIRE_NOC, PAN, DGFT_IEC), description, issuing_authority,
+     default_validity_months, is_lifetime_valid.
+6. Dependency (dependencies)
+   - Maps license_type_id -> prerequisite_license_type_id with is_blocking flag.
+7. LicenseTypeStateRule (license_type_state_rules)
+   - State-level overrides for is_mandatory and validity_override_months.
+8. RequiredLicenseType (required_license_types)
+   - Maps which license_type_id is required per location_type and optional state.
+9. ComplianceScore (compliance_scores)
+   - Stores historical score snapshots per location: score (0-100),
+     breakdown_json, calculated_at.
+10. Document (documents)
+    - Stores file_name, storage_key, file_size, mime_type, sha256_hash,
+      issue_date, expiry_date, status, rejection_reason, uploaded_by_id,
+      verified_by_id, verified_at, parent_document_id (self-referencing renewal
+      chain), and optional location_id (null for org-wide documents).
+11. AuditLink (audit_links)
+    - Stores unique token, optional pin_hash, title, notes, expires_at,
+      is_active, created_by_id.
+12. AuditLinkDocument (audit_link_documents)
+    - Join table linking an AuditLink to selected Document records.
+13. AuditLinkAccessLog (audit_link_access_logs)
+    - Tracks accessed_at, ip_address, user_agent, and success flag.
+14. NotificationLog (notification_logs) & NotificationPreference
+    (notification_preferences)
+    - Tracks sent alerts and per-user email/SMS/in-app opt-ins by AlertType.
+
+
+6. CORE WORKFLOWS
+--------------------------------------------------------------------------------
+A. Document Upload & Verification
+   - Files are uploaded via multipart/form-data (Multer) to the configured S3
+     bucket through StorageService.
+   - A SHA-256 hash is computed at upload time and stored for integrity.
+   - New uploads start in PENDING_VERIFICATION.
+   - Admins review and mark documents VERIFIED or REJECTED (with reason).
+   - Renewals link back to the previous document via parent_document_id,
+     preserving a full audit trail in VersionHistoryModal.
+
+B. Compliance Score & Dependency Engine
+   - Evaluates required licenses for a location based on its facility type and
+     state rules.
+   - Checks whether each required license has a valid, non-expired VERIFIED
+     document.
+   - Evaluates prerequisite dependencies: if a blocking prerequisite license is
+     missing or expired, dependent licenses are flagged with cascading risk.
+   - Produces a 0-100 score, actionable suggestions, and persists snapshots in
+     ComplianceScore for trend visualization.
+
+C. Audit Data Rooms
+   - Org Admins select specific documents and generate a time-bound AuditLink.
+   - External inspectors open /audit/:token, enter a PIN if configured, and
+     view/download only the shared documents.
+   - Every access attempt is recorded in AuditLinkAccessLog.
+
+D. Automated Scheduling & Alerts
+   - node-cron runs periodic sweeps to mark expired documents as EXPIRED,
+     recalculate compliance scores, and dispatch EXPIRY_WARNING,
+     LAPSED_LICENSE, or CASCADING_RISK alerts via in-app logs and email.
+
+
+7. ENVIRONMENT VARIABLES (backend/.env)
+--------------------------------------------------------------------------------
+Required:
+- PORT                     API server port (default: 5000)
+- NODE_ENV                 development | production | test
+- DATABASE_URL             PostgreSQL connection URI (special characters in
+                           passwords such as '?' must be URL-encoded as '%3F')
+- JWT_SECRET               Secret key for signing JWTs
+- JWT_EXPIRES_IN           Token lifetime (e.g., 7d)
+
+Storage (STORAGE_PROVIDER = 's3' or 'minio'):
+- S3 mode: AWS_ACCESS_KEY_ID, AWS_SECRET_ACCESS_KEY, AWS_S3_BUCKET,
+  AWS_REGION, and optional S3_ENDPOINT (for Supabase Storage S3)
+- MinIO mode: MINIO_ENDPOINT, MINIO_ACCESS_KEY, MINIO_SECRET_KEY,
+  MINIO_BUCKET, MINIO_REGION
+
+Email (EMAIL_PROVIDER = 'resend' or 'nodemailer'):
+- Resend mode: RESEND_API_KEY, RESEND_FROM
+- Nodemailer mode: SMTP_HOST, SMTP_PORT, SMTP_USER, SMTP_PASS, SMTP_FROM
+
+CORS:
+- CORS_ORIGIN              Allowed frontend origin (default: http://localhost:5173)
