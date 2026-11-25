@@ -1,5 +1,4 @@
 import React from "react";
-import { Shield, Loader2 } from "lucide-react";
 
 /**
  * Clean, lightweight buffering animation component.
@@ -7,7 +6,6 @@ import { Shield, Loader2 } from "lucide-react";
  */
 export function BufferingLoader({
   title = "Loading...",
-  message = "Retrieving compliance records...",
   compact = false,
   className = ""
 }) {
@@ -30,36 +28,11 @@ export function BufferingLoader({
 
         {/* Spinning buffering arc */}
         <div className="w-11 h-11 rounded-full border-2 border-transparent border-t-indigo-600 border-r-indigo-600 animate-spin absolute" />
-
-        {/* Center core pulse */}
-        <div className="w-2.5 h-2.5 rounded-full bg-indigo-600 animate-pulse absolute" />
       </div>
 
       <h3 className="text-sm font-semibold text-gray-900 tracking-tight">
         {title}
       </h3>
-
-      {message && (
-        <p className="text-xs text-gray-500 mt-1.5 max-w-sm leading-relaxed">
-          {message}
-        </p>
-      )}
-
-      {/* Subtle buffering dots */}
-      <div className="flex items-center gap-1.5 mt-3.5" aria-hidden="true">
-        <span
-          className="w-1.5 h-1.5 rounded-full bg-indigo-600/60 animate-bounce"
-          style={{ animationDelay: "0ms" }}
-        />
-        <span
-          className="w-1.5 h-1.5 rounded-full bg-indigo-600 animate-bounce"
-          style={{ animationDelay: "150ms" }}
-        />
-        <span
-          className="w-1.5 h-1.5 rounded-full bg-indigo-600/60 animate-bounce"
-          style={{ animationDelay: "300ms" }}
-        />
-      </div>
     </div>
   );
 }
@@ -77,67 +50,45 @@ export function Skeleton({ className = "" }) {
   );
 }
 
-export function WorkspaceLoader({ message = "Initializing compliance workspace..." }) {
+export function WorkspaceLoader({ message = "Loading workspace..." }) {
   return (
-    <div className="flex flex-col items-center justify-center min-h-screen bg-slate-900 text-white p-6 font-sans antialiased">
-      <div className="relative mb-6">
-        <div className="w-16 h-16 rounded-2xl bg-indigo-600/20 border border-indigo-500/30 flex items-center justify-center">
-          <Shield className="w-8 h-8 text-indigo-400 animate-pulse" />
-        </div>
-        <div className="absolute -inset-2 rounded-3xl border-2 border-indigo-500/30 border-t-indigo-400 animate-spin pointer-events-none" />
+    <div
+      className="flex flex-col items-center justify-center min-h-screen bg-slate-900 text-white p-6 font-sans antialiased"
+      role="status"
+      aria-live="polite"
+    >
+      <div className="ms-loader text-white mb-5" aria-hidden="true">
+        {[0, 1, 2, 3, 4, 5].map((index) => (
+          <span
+            key={index}
+            className="ms-loader-dot"
+            style={{ animationDelay: `${index * 110}ms` }}
+          />
+        ))}
       </div>
-      <h3 className="text-base font-bold text-white tracking-tight">{message}</h3>
-      <p className="text-xs text-slate-400 mt-1.5 flex items-center gap-1.5">
-        <Loader2 className="w-3.5 h-3.5 animate-spin text-indigo-400" />
-        Fetching organization profile & licenses...
-      </p>
+      <p className="text-sm font-medium text-white/90 tracking-tight">{message}</p>
     </div>
   );
 }
 
 export function DashboardSkeleton() {
-  return (
-    <BufferingLoader
-      title="Loading Dashboard"
-      message="Aggregating compliance health, regulatory alerts, and location statistics..."
-    />
-  );
+  return <BufferingLoader title="Loading Dashboard" />;
 }
 
 export function LocationsSkeleton() {
-  return (
-    <BufferingLoader
-      title="Loading Locations"
-      message="Syncing operational facilities, jurisdictional requirements, and permits..."
-    />
-  );
+  return <BufferingLoader title="Loading Locations" />;
 }
 
 export function DocumentsSkeleton() {
-  return (
-    <BufferingLoader
-      title="Loading Document Vault"
-      message="Fetching compliance filings, regulatory proofs, and verification history..."
-    />
-  );
+  return <BufferingLoader title="Loading Document Vault" />;
 }
 
 export function ComplianceScoreSkeleton() {
-  return (
-    <BufferingLoader
-      title="Calculating Compliance Health"
-      message="Evaluating Regulatory Compliance Engine: penalty vectors, requirement weights, and risk classifications..."
-    />
-  );
+  return <BufferingLoader title="Calculating Compliance Health" />;
 }
 
 export function AuditLinksSkeleton() {
-  return (
-    <BufferingLoader
-      title="Loading Audit Rooms"
-      message="Preparing secure external auditor links and session access logs..."
-    />
-  );
+  return <BufferingLoader title="Loading Audit Rooms" />;
 }
 
 export default BufferingLoader;
